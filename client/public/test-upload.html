@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test d'upload</title>
+</head>
+<body>
+    <h1>Test d'upload de fichiers</h1>
+    <form action="http://localhost:5000/api/posts/test-upload" method="POST" enctype="multipart/form-data">
+        <input type="text" name="content" placeholder="Contenu du post" /><br><br>
+        <input type="file" name="files" multiple /><br><br>
+        <button type="submit">Envoyer</button>
+    </form>
+</body>
+</html>
