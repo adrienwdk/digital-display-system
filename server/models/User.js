@@ -1,4 +1,4 @@
-// models/User.js
+// server/models/User.js (version mise à jour)
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
@@ -18,12 +18,30 @@ const UserSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true
+    required: function() {
+      // Le mot de passe n'est requis que pour les utilisateurs non-OAuth
+      return !this.isOAuthUser;
+    }
   },
-  // Nouveau champ pour le département de l'utilisateur
+  // Nouveau champ pour identifier les utilisateurs OAuth
+  isOAuthUser: {
+    type: Boolean,
+    default: false
+  },
+  // Stockage optionnel des données OAuth
+  oAuthProvider: {
+    type: String,
+    enum: ['microsoft', 'google'],
+    default: null
+  },
+  oAuthId: {
+    type: String,
+    default: null
+  },
   service: {
     type: String,
-    enum: ['marketing', 'commerce', 'achat', 'informatique', 'logistique', 'rh', 'comptabilité']
+    enum: ['marketing', 'commerce', 'achat', 'informatique', 'logistique', 'rh', 'comptabilité', 'general'],
+    default: 'general'
   },
   isAdmin: {
     type: Boolean,
@@ -31,9 +49,8 @@ const UserSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    default: 'user'
+    default: 'Employé'
   },
-  // Nouveau champ pour les préférences de notification
   notificationsEnabled: {
     type: Boolean,
     default: true
@@ -55,7 +72,8 @@ const UserSchema = new mongoose.Schema({
 
 // Middleware pour hacher le mot de passe avant de sauvegarder
 UserSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) {
+  // Ne pas hacher si c'est un utilisateur OAuth ou si le mot de passe n'a pas été modifié
+  if (this.isOAuthUser || !this.isModified('password')) {
     return next();
   }
   
@@ -70,6 +88,10 @@ UserSchema.pre('save', async function(next) {
 
 // Méthode pour comparer les mots de passe
 UserSchema.methods.comparePassword = async function(plainPassword) {
+  // Les utilisateurs OAuth ne peuvent pas se connecter avec un mot de passe
+  if (this.isOAuthUser) {
+    return false;
+  }
   return await bcrypt.compare(plainPassword, this.password);
 };
 

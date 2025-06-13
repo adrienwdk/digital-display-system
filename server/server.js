@@ -1,3 +1,4 @@
+// server/server.js (ajout des routes OAuth)
 require('dotenv').config();
 
 const express = require('express');
@@ -11,7 +12,7 @@ const app = express();
 // Connexion à la base de données
 connectDB();
 
-// Configuration CORS améliorée pour inclure x-auth-token
+// Configuration CORS améliorée pour OAuth
 app.use(cors({
   origin: 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -30,17 +31,18 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
 }
 
-// IMPORTANT: Servir les fichiers statiques du dossier uploads
-// Le premier paramètre de express.static est la route URL
-// Le second paramètre est le chemin du dossier
+// Servir les fichiers statiques du dossier uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Routes
+// Routes existantes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/posts', require('./routes/posts'));
-app.use('/api/admin', require('./routes/admin')); // Routes admin
+app.use('/api/admin', require('./routes/admin'));
 
-// Vérifier si le dossier uploads et ses sous-dossiers existent
+// NOUVELLE ROUTE: OAuth
+app.use('/api/oauth', require('./routes/oauth'));
+
+// Vérification des dossiers d'upload (code existant...)
 console.log("Vérification des dossiers d'upload...");
 console.log(`Dossier uploads: ${fs.existsSync(uploadsDir) ? 'Existe' : 'N\'existe pas'}`);
 
@@ -87,6 +89,7 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Serveur démarré sur le port ${PORT}`);
   console.log(`Les fichiers statiques sont servis depuis: ${path.join(__dirname, 'uploads')}`);
+  console.log(`OAuth configuré avec Azure AD`);
 });
 
 // Route de test pour vérifier l'accès aux fichiers statiques

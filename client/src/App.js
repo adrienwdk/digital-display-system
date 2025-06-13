@@ -1,10 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
 import './App.css';
 import Header from './components/layout/Header';
 import api from './services/api';
 import AdminPanel from './components/admin/AdminPanel';
-import Post from './components/posts/Post'; // Chemin d'importation corrigé
+import Post from './components/posts/Post';
+import oauthService from './services/oauthService';
 
+// Import dynamique des composants OAuth
+const OAuthCallback = React.lazy(() => import('./components/auth/OAuthCallback'));
+const OAuthLogin = React.lazy(() => import('./components/auth/OAuthLogin'));
 
 function App() {
   // États d'authentification
@@ -20,7 +25,7 @@ function App() {
     lastName: '',
     email: '',
     role: '',
-    service: '', // Ajout du service à l'état du formulaire
+    service: '',
     password: '',
     confirmPassword: ''
   });
@@ -39,10 +44,9 @@ function App() {
   
   // État des posts
   const [posts, setPosts] = useState([]);
-  // Ajout d'un état pour les posts filtrés
   const [filteredPosts, setFilteredPosts] = useState([]);
 
-  // Utilisateur par défaut pour les tests - utilisé uniquement si aucun utilisateur n'est connecté
+  // Utilisateur par défaut pour les tests
   const DEFAULT_USER = {
     firstName: 'Visiteur',
     lastName: '',
@@ -72,7 +76,7 @@ function App() {
         const res = await api.get('/posts');
         console.log("Posts chargés:", res.data);
         setPosts(res.data);
-        setFilteredPosts(res.data); // Initialiser les posts filtrés avec tous les posts
+        setFilteredPosts(res.data);
       } catch (err) {
         console.error("Erreur lors du chargement des posts:", err);
       }
@@ -83,36 +87,35 @@ function App() {
     loadInitialData();
   }, []);
 
-  // Effet pour filtrer les posts lorsque la recherche ou l'onglet change
+  // Effet pour filtrer les posts
   useEffect(() => {
-    // Filtrer les posts en fonction de la recherche et de l'onglet actif
     let filtered = posts;
     
     // Filtre par recherche
     if (searchQuery.trim() !== '') {
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(post => 
-        // Vérifier dans le contenu du post
         (post.content && post.content.toLowerCase().includes(query)) ||
-        // Vérifier dans les informations de l'auteur
         (post.author && post.author.firstName && post.author.firstName.toLowerCase().includes(query)) ||
         (post.author && post.author.lastName && post.author.lastName.toLowerCase().includes(query)) ||
         (post.author && post.author.role && post.author.role.toLowerCase().includes(query))
       );
     }
     
-    // Filtre par onglet (service/catégorie)
+    // Filtre par onglet
     if (activeTab !== 'general') {
-      // Filtrer par catégorie
       filtered = filtered.filter(post => post.category === activeTab);
     }
     
     setFilteredPosts(filtered);
   }, [searchQuery, activeTab, posts]);
 
-  // Ajouter cette fonction pour gérer la suppression de la recherche
-  const clearSearch = () => {
-    setSearchQuery('');
+  // Fonction de succès OAuth
+  const handleOAuthSuccess = (user) => {
+    setCurrentUser(user);
+    setIsLoggedIn(true);
+    setShowLoginModal(false);
+    console.log('Utilisateur OAuth connecté:', user);
   };
 
   // Gestion du formulaire d'authentification
@@ -128,7 +131,6 @@ function App() {
   const handleRegister = async (e) => {
     e.preventDefault();
     
-    // Validation basique
     if (authForm.password !== authForm.confirmPassword) {
       alert("Les mots de passe ne correspondent pas");
       return;
@@ -146,24 +148,20 @@ function App() {
         email: authForm.email,
         password: authForm.password,
         role: authForm.role,
-        service: authForm.service // Ajout du service lors de l'inscription
+        service: authForm.service
       });
       
-      // Enregistrer le token
       localStorage.setItem('token', res.data.token);
-      
-      // Mettre à jour l'état
       setCurrentUser(res.data.user);
       setIsLoggedIn(true);
       setShowLoginModal(false);
       
-      // Réinitialiser le formulaire
       setAuthForm({
         firstName: '',
         lastName: '',
         email: '',
         role: '',
-        service: '', // Réinitialiser le service
+        service: '',
         password: '',
         confirmPassword: ''
       });
@@ -188,21 +186,17 @@ function App() {
         password: authForm.password
       });
       
-      // Enregistrer le token
       localStorage.setItem('token', res.data.token);
-      
-      // Mettre à jour l'état
       setCurrentUser(res.data.user);
       setIsLoggedIn(true);
       setShowLoginModal(false);
       
-      // Réinitialiser le formulaire
       setAuthForm({
         firstName: '',
         lastName: '',
         email: '',
         role: '',
-        service: '', // Réinitialiser le service
+        service: '',
         password: '',
         confirmPassword: ''
       });
@@ -214,16 +208,33 @@ function App() {
 
   // Fonction de déconnexion
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    setCurrentUser(null);
-    setIsLoggedIn(false);
-    setShowAdminPanel(false); // Quitter le mode admin en se déconnectant
+    const isOAuth = oauthService.isOAuthUser();
+    
+    if (isOAuth) {
+      oauthService.logout();
+    } else {
+      localStorage.removeItem('token');
+      setCurrentUser(null);
+      setIsLoggedIn(false);
+      setShowAdminPanel(false);
+    }
   };
 
   // Gestion des fichiers pour la création de post
   const handleFileChange = (e) => {
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
+      
+      // Limiter à 4 images pour les photos
+      const imageFiles = filesArray.filter(file => file.type.startsWith('image/'));
+      const otherFiles = filesArray.filter(file => !file.type.startsWith('image/'));
+      
+      const currentImageCount = selectedFiles.filter(file => file.type.startsWith('image/')).length;
+      
+      if (currentImageCount + imageFiles.length > 4) {
+        alert("Vous ne pouvez ajouter que 4 images maximum par publication");
+        return;
+      }
       
       // Vérifier la taille totale des fichiers (max 10MB par fichier, 50MB au total)
       const totalSize = [...selectedFiles, ...filesArray].reduce((acc, file) => acc + file.size, 0);
@@ -232,7 +243,7 @@ function App() {
         return;
       }
       
-      // Limiter le nombre de fichiers à 10
+      // Limiter le nombre total de fichiers à 10
       if (selectedFiles.length + filesArray.length > 10) {
         alert("Vous ne pouvez pas ajouter plus de 10 fichiers par publication");
         return;
@@ -258,7 +269,6 @@ function App() {
     const newFiles = [...selectedFiles];
     const newUrls = [...filePreviewUrls];
     
-    // Libérer l'URL de l'objet pour éviter les fuites de mémoire
     URL.revokeObjectURL(newUrls[index].url);
     
     newFiles.splice(index, 1);
@@ -273,45 +283,28 @@ function App() {
     if (!newPostContent.trim() && selectedFiles.length === 0) return;
     
     try {
-      // Préparer les données pour l'envoi
       const formData = new FormData();
       formData.append('content', newPostContent);
       formData.append('category', postService);
       
-      // Ajouter les fichiers s'il y en a
       if (selectedFiles.length > 0) {
-        console.log("Fichiers à envoyer:", selectedFiles);
         selectedFiles.forEach(file => {
-          // Essayer les deux noms de champs
           formData.append('files', file);
         });
       }
       
-      // Log du contenu formData
-      console.log("FormData entries:", [...formData.entries()].map(e => {
-        if (e[1] instanceof File) {
-          return [e[0], { name: e[1].name, type: e[1].type, size: e[1].size }];
-        }
-        return e;
-      }));
-      
-      // Envoyer la requête avec le header multipart/form-data supprimé (géré par l'interceptor)
       const res = await api.post('/posts', formData);
-      console.log("Réponse de création de post:", res.data);
       
-      // Si l'utilisateur est admin, le post est automatiquement approuvé
       if (currentUser?.isAdmin) {
         setPosts([res.data, ...posts]);
       } else {
-        // Informer l'utilisateur que son post sera modéré
         alert("Votre publication a été soumise et sera visible après modération.");
       }
       
-      // Réinitialiser le formulaire
       setNewPostContent('');
       setSelectedFiles([]);
       setFilePreviewUrls([]);
-      setPostService('general'); // Réinitialiser le service à sa valeur par défaut
+      setPostService('general');
       setShowCreatePostModal(false);
     } catch (err) {
       console.error("Erreur lors de la création du post:", err);
@@ -353,7 +346,6 @@ function App() {
             <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
-        {/* Bouton admin visible seulement pour les administrateurs */}
         {currentUser?.isAdmin && (
           <button 
             className={`sidebar-button ${showAdminPanel ? 'active' : ''}`}
@@ -383,7 +375,7 @@ function App() {
     );
   };
 
-  // Formatage de la date pour les posts
+  // Formatage de la date
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -405,40 +397,26 @@ function App() {
 
   // Préparation des données pour le composant Post
   const preparePostData = (post) => {
-    // Déboguer la structure du post
-    console.log("Préparation du post:", post._id || post.id);
-    
-    // Tester l'accès aux images
-    if (post.images && post.images.length > 0) {
-      console.log(`Post ${post._id || post.id} contient ${post.images.length} image(s):`, post.images);
-    }
-
-    // Formatter la date pour l'affichage
     const formattedDate = formatDate(post.createdAt);
-    
-    // Retourner l'objet post formaté pour le composant
     return {
       ...post,
       time: formattedDate
     };
   };
 
-  // Rendu du modal de création de post
+  // Modal de création de post
   const renderCreatePostModal = () => {
     if (!showCreatePostModal) return null;
 
-    // Utiliser les données de l'utilisateur courant ou l'utilisateur par défaut
     const authorData = currentUser || DEFAULT_USER;
     const isUserAdmin = currentUser?.isAdmin;
 
-    // Formatage de la taille des fichiers
     const formatFileSize = (bytes) => {
       if (bytes < 1024) return bytes + ' B';
       else if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
       else return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
     };
 
-    // Récupérer l'icône appropriée pour le type de fichier
     const getFileIcon = (fileType) => {
       if (fileType.startsWith('image/')) {
         return (
@@ -453,22 +431,6 @@ function App() {
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2" />
             <path d="M14 2v6h6" stroke="currentColor" strokeWidth="2" />
-            <path d="M16 13H8" stroke="currentColor" strokeWidth="2" />
-            <path d="M16 17H8" stroke="currentColor" strokeWidth="2" />
-            <path d="M10 9H8" stroke="currentColor" strokeWidth="2" />
-          </svg>
-        );
-      } else if (
-        fileType === 'application/vnd.ms-excel' || 
-        fileType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      ) {
-        return (
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2" />
-            <path d="M14 2v6h6" stroke="currentColor" strokeWidth="2" />
-            <path d="M16 13H8" stroke="currentColor" strokeWidth="2" />
-            <path d="M16 17H8" stroke="currentColor" strokeWidth="2" />
-            <path d="M10 9H8" stroke="currentColor" strokeWidth="2" />
           </svg>
         );
       } else {
@@ -537,6 +499,14 @@ function App() {
             
             {filePreviewUrls.length > 0 && (
               <div className="file-previews">
+                <div className="preview-header">
+                  <span className="preview-count">
+                    {filePreviewUrls.filter(f => f.type.startsWith('image/')).length} / 4 images
+                    {filePreviewUrls.filter(f => !f.type.startsWith('image/')).length > 0 && 
+                      ` • ${filePreviewUrls.filter(f => !f.type.startsWith('image/')).length} autres fichiers`
+                    }
+                  </span>
+                </div>
                 {filePreviewUrls.map((file, index) => (
                   <div className="file-preview" key={index}>
                     {file.type.startsWith('image/') ? (
@@ -575,7 +545,7 @@ function App() {
                       <circle cx="8.5" cy="8.5" r="1.5" stroke="currentColor" strokeWidth="2" />
                       <path d="M21 15l-5-5-5 5" stroke="currentColor" strokeWidth="2" />
                     </svg>
-                    Images
+                    Images (max 4)
                   </span>
                 </label>
               </div>
@@ -593,9 +563,6 @@ function App() {
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2" />
                       <path d="M14 2v6h6" stroke="currentColor" strokeWidth="2" />
-                      <path d="M16 13H8" stroke="currentColor" strokeWidth="2" />
-                      <path d="M16 17H8" stroke="currentColor" strokeWidth="2" />
-                      <path d="M10 9H8" stroke="currentColor" strokeWidth="2" />
                     </svg>
                     PDF
                   </span>
@@ -615,9 +582,6 @@ function App() {
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2" />
                       <path d="M14 2v6h6" stroke="currentColor" strokeWidth="2" />
-                      <path d="M16 13H8" stroke="currentColor" strokeWidth="2" />
-                      <path d="M16 17H8" stroke="currentColor" strokeWidth="2" />
-                      <path d="M10 9H8" stroke="currentColor" strokeWidth="2" />
                     </svg>
                     Excel
                   </span>
@@ -627,7 +591,7 @@ function App() {
             
             <div className="modal-actions">
               <div className="file-limits-info">
-                Max: 10 fichiers, 10MB/fichier, 50MB au total
+                Max: 4 images, 10 fichiers total, 10MB/fichier, 50MB au total
               </div>
               <button
                 className="publish-button"
@@ -643,7 +607,7 @@ function App() {
     );
   };
 
-  // Rendu du modal d'authentification (connexion/inscription)
+  // Modal d'authentification avec OAuth
   const renderAuthModal = () => {
     if (!showLoginModal) return null;
 
@@ -661,6 +625,17 @@ function App() {
           </div>
           
           <div className="modal-body">
+            {/* Bouton OAuth Microsoft */}
+            <Suspense fallback={<div>Chargement...</div>}>
+              <OAuthLogin 
+                onSuccess={handleOAuthSuccess}
+                onError={(error) => {
+                  console.error('Erreur OAuth:', error);
+                  alert('Erreur lors de la connexion OAuth: ' + error);
+                }}
+              />
+            </Suspense>
+            
             {isRegistering ? (
               // Formulaire d'inscription
               <form onSubmit={handleRegister}>
@@ -821,7 +796,15 @@ function App() {
     setIsRegistering(isRegister);
   };
 
-  return (
+  // Composant de callback OAuth pour React Router v5
+  const OAuthCallbackComponent = () => (
+    <Suspense fallback={<div>Chargement de l'authentification...</div>}>
+      <OAuthCallback onAuthSuccess={handleOAuthSuccess} />
+    </Suspense>
+  );
+
+  // Composant principal pour React Router v5
+  const MainComponent = () => (
     <div className="app">
       {renderSidebar()}
 
@@ -832,20 +815,39 @@ function App() {
         ) : (
           // Sinon afficher le contenu normal
           <>
-            {/* Utiliser le composant Header à la place de renderHeader() */}
+            {/* Utiliser le composant Header */}
             <Header 
               onTabChange={setActiveTab} 
               onSearch={setSearchQuery}
             />
             
-            {/* Ajouter la partie utilisateur/authentification après le Header */}
+            {/* Section utilisateur/authentification */}
             <div className="header-user-section">
               {isLoggedIn && currentUser && (
                 <div className="user-menu">
                   <span className="user-name">
                     Bienvenue, {currentUser.firstName}
                     {currentUser.isAdmin && (
-                      <span className="admin-badge">Admin</span>
+                      <span className="admin-badge" style={{
+                        marginLeft: '8px',
+                        padding: '2px 6px',
+                        backgroundColor: '#ff5c39',
+                        color: 'white',
+                        borderRadius: '3px',
+                        fontSize: '11px',
+                        fontWeight: 'bold'
+                      }}>Admin</span>
+                    )}
+                    {currentUser.isOAuthUser && (
+                      <span className="oauth-badge" style={{
+                        marginLeft: '8px',
+                        padding: '2px 6px',
+                        backgroundColor: '#0078d4',
+                        color: 'white',
+                        borderRadius: '3px',
+                        fontSize: '11px',
+                        fontWeight: 'bold'
+                      }}>Microsoft</span>
                     )}
                   </span>
                   <button 
@@ -883,7 +885,7 @@ function App() {
             
             <div className="feed">
               {filteredPosts.length > 0 ? (
-                // Afficher les posts filtrés au lieu des posts originaux
+                // Afficher les posts filtrés
                 filteredPosts.map(post => (
                   <Post key={post._id || post.id} post={preparePostData(post)} />
                 ))
@@ -903,6 +905,18 @@ function App() {
       {renderCreatePostModal()}
       {renderAuthModal()}
     </div>
+  );
+
+  return (
+    <Router>
+      <Switch>
+        {/* Route de callback OAuth */}
+        <Route path="/auth/callback" component={OAuthCallbackComponent} />
+        
+        {/* Route principale */}
+        <Route path="/" component={MainComponent} />
+      </Switch>
+    </Router>
   );
 }
 
