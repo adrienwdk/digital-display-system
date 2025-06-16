@@ -328,11 +328,21 @@ function App() {
     }
   };
 
-  // Rendu de la barre latérale
+  // Rendu de la barre latérale MODIFIÉE avec avatar
   const renderSidebar = () => {
     return (
       <div className="sidebar">
-        <div className="logo"></div>
+        {/* Avatar de l'utilisateur connecté ou logo par défaut */}
+        {isLoggedIn && currentUser ? (
+          <Avatar 
+            user={currentUser} 
+            size="large"
+            className="sidebar-avatar"
+          />
+        ) : (
+          <div className="logo"></div>
+        )}
+        
         <button 
           className={`sidebar-button ${!showAdminPanel ? 'active' : ''}`}
           onClick={() => setShowAdminPanel(false)}
@@ -414,11 +424,32 @@ function App() {
   // Préparation des données pour le composant Post
   const preparePostData = (post) => {
     const formattedDate = formatDate(post.createdAt);
-    return {
+    
+    console.log('Preparing post data:', post);
+    
+    // Déterminer l'avatar à utiliser
+    let authorAvatar = null;
+    
+    // Si l'utilisateur connecté est l'auteur du post, utiliser son avatar
+    if (currentUser && post.author === `${currentUser.firstName} ${currentUser.lastName}`) {
+      authorAvatar = currentUser.avatar;
+      console.log('Using current user avatar:', authorAvatar);
+    }
+    
+    // Sinon, utiliser l'avatar du post s'il existe
+    if (!authorAvatar && post.authorAvatar) {
+      authorAvatar = post.authorAvatar;
+      console.log('Using post authorAvatar:', authorAvatar);
+    }
+    
+    const preparedPost = {
       ...post,
       time: formattedDate,
-      authorAvatar: post.authorAvatar || null
+      authorAvatar: authorAvatar
     };
+    
+    console.log('Prepared post data:', preparedPost);
+    return preparedPost;
   };
 
   // Modal de création de post
@@ -842,15 +873,10 @@ function App() {
               onSearch={setSearchQuery}
             />
             
-            {/* Section utilisateur/authentification */}
+            {/* Section utilisateur/authentification MODIFIÉE - sans avatar */}
             <div className="header-user-section">
               {isLoggedIn && currentUser && (
                 <div className="user-menu">
-                  <Avatar 
-                    user={currentUser} 
-                    size="small" 
-                    className="mr-2"
-                  />
                   <span className="user-name">
                     Bienvenue, {currentUser.firstName}
                     {currentUser.isAdmin && (
@@ -911,9 +937,13 @@ function App() {
             
             <div className="feed">
               {filteredPosts.length > 0 ? (
-                // Afficher les posts filtrés
+                // Afficher les posts filtrés avec l'utilisateur connecté
                 filteredPosts.map(post => (
-                  <Post key={post._id || post.id} post={preparePostData(post)} />
+                  <Post 
+                    key={post._id || post.id} 
+                    post={preparePostData(post)} 
+                    currentUser={currentUser}
+                  />
                 ))
               ) : (
                 // Afficher un message si aucun résultat
