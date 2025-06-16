@@ -1,3 +1,4 @@
+// server/routes/posts.js - Version corrigée pour le filtrage par service
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
@@ -7,10 +8,9 @@ const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
 const Post = require('../models/Post');
 const User = require('../models/User');
-// Importer le service d'emails
 const emailService = require('../services/emailService');
 
-// Création des dossiers (code existant inchangé)
+// Configuration multer existante (inchangée)
 const uploadsDir = path.join(__dirname, '../uploads');
 console.log("Chemin absolu du dossier uploads:", uploadsDir);
 if (!fs.existsSync(uploadsDir)) {
@@ -18,7 +18,6 @@ if (!fs.existsSync(uploadsDir)) {
   console.log("Dossier uploads créé");
 }
 
-// Créer les sous-dossiers pour les différents types de fichiers
 const imageDir = path.join(uploadsDir, 'images');
 console.log("Chemin absolu du dossier images:", imageDir);
 if (!fs.existsSync(imageDir)) {
@@ -44,18 +43,7 @@ if (!fs.existsSync(otherDir)) {
   console.log("Dossier other créé");
 }
 
-// Vérifier si les dossiers sont accessibles en écriture
-try {
-  const testFilePath = path.join(imageDir, 'test-write.txt');
-  fs.writeFileSync(testFilePath, 'Test write access');
-  console.log("Test d'écriture réussi dans:", testFilePath);
-  fs.unlinkSync(testFilePath);
-  console.log("Fichier de test supprimé");
-} catch (err) {
-  console.error("ERREUR: Impossible d'écrire dans le dossier images:", err.message);
-}
-
-// Configuration du stockage de fichiers avec multer
+// Configuration multer
 const storage = multer.diskStorage({
   destination: function(req, file, cb) {
     let uploadPath = uploadsDir;
@@ -63,34 +51,27 @@ const storage = multer.diskStorage({
     
     if (file.mimetype.startsWith('image/')) {
       uploadPath = imageDir;
-      console.log("Destination choisie: dossier images");
     } else if (file.mimetype === 'application/pdf') {
       uploadPath = pdfsDir;
-      console.log("Destination choisie: dossier pdfs");
     } else if (
       file.mimetype === 'application/vnd.ms-excel' || 
       file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     ) {
       uploadPath = excelDir;
-      console.log("Destination choisie: dossier excel");
     } else {
       uploadPath = otherDir;
-      console.log("Destination choisie: dossier other");
     }
     
-    console.log("Chemin complet de destination:", uploadPath);
     cb(null, uploadPath);
   },
   filename: function(req, file, cb) {
     const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = path.extname(file.originalname);
     const newFilename = uniqueName + ext;
-    console.log("Nouveau nom de fichier généré:", newFilename);
     cb(null, newFilename);
   }
 });
 
-// Filtre des fichiers autorisés
 const fileFilter = (req, file, cb) => {
   const allowedMimeTypes = [
     'image/jpeg', 
@@ -102,27 +83,22 @@ const fileFilter = (req, file, cb) => {
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   ];
   
-  console.log("Vérification du type de fichier:", file.mimetype);
   if (allowedMimeTypes.includes(file.mimetype)) {
-    console.log("Type de fichier autorisé");
     cb(null, true);
   } else {
-    console.log("Type de fichier non autorisé");
     cb(new Error(`Type de fichier non autorisé. Types autorisés: images, PDF, Excel`), false);
   }
 };
 
-// Configuration de multer
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // Limite à 10MB
-    files: 10 // Max 10 fichiers par post
+    fileSize: 10 * 1024 * 1024,
+    files: 10
   }
 });
 
-// Fonction pour déterminer le type de fichier
 const getFileType = (mimetype) => {
   if (mimetype.startsWith('image/')) {
     return 'image';
@@ -146,19 +122,16 @@ router.post('/:id/react', auth, async (req, res) => {
     const { reactionType } = req.body;
     const postId = req.params.id;
     
-    // Vérifier que le type de réaction est valide
     const validReactions = ['like', 'love', 'bravo', 'interesting', 'welcome'];
     if (!validReactions.includes(reactionType)) {
       return res.status(400).json({ message: 'Type de réaction invalide' });
     }
     
-    // Trouver le post
     const post = await Post.findById(postId);
     if (!post) {
       return res.status(404).json({ message: 'Post non trouvé' });
     }
     
-    // Récupérer les informations de l'utilisateur
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
@@ -166,10 +139,7 @@ router.post('/:id/react', auth, async (req, res) => {
     
     const userName = `${user.firstName} ${user.lastName}`;
     
-    // Ajouter la réaction
     post.addReaction(req.user.id, userName, reactionType);
-    
-    // Sauvegarder le post
     await post.save();
     
     res.json({
@@ -189,13 +159,11 @@ router.delete('/:id/react', auth, async (req, res) => {
   try {
     const postId = req.params.id;
     
-    // Trouver le post
     const post = await Post.findById(postId);
     if (!post) {
       return res.status(404).json({ message: 'Post non trouvé' });
     }
     
-    // Trouver et retirer la réaction de l'utilisateur
     const userReactionType = post.getUserReaction(req.user.id);
     
     if (userReactionType) {
@@ -257,49 +225,46 @@ router.get('/:id/user-reaction', auth, async (req, res) => {
 
 // ==================== ROUTES POUR LES POSTS ====================
 
-// Route pour créer un post
+// Route pour créer un post - LOGIQUE CORRIGÉE
 router.post('/', auth, upload.array('files', 10), async (req, res) => {
   try {
-    console.log("========== DÉBUT DEBUG UPLOAD ==========");
-    console.log("Requête POST reçue pour créer un post");
+    console.log("========== DÉBUT CRÉATION POST ==========");
     console.log("Corps de la requête:", req.body);
     console.log("Fichiers reçus:", req.files?.length || 0, "fichiers");
     
-    if (req.files && req.files.length > 0) {
-      console.log(`Nombre de fichiers reçus: ${req.files.length}`);
-      req.files.forEach((file, idx) => {
-        console.log(`Fichier ${idx}:`, {
-          fieldname: file.fieldname,
-          originalname: file.originalname,
-          encoding: file.encoding,
-          mimetype: file.mimetype,
-          destination: file.destination,
-          filename: file.filename,
-          path: file.path,
-          size: file.size
-        });
-
-        const fileExists = fs.existsSync(file.path);
-        console.log(`Le fichier ${idx} existe sur disque: ${fileExists}`);
-        
-        if (file.mimetype.startsWith('image/')) {
-          const relativePath = '/' + file.path.split(path.sep).slice(-3).join('/');
-          console.log(`Chemin relatif de l'image ${idx}: ${relativePath}`);
-        }
-      });
-    } else {
-      console.log("Aucun fichier reçu");
-    }
+    const { content, title, tags, service } = req.body;
     
-    const { content, title, tags } = req.body;
+    // CORRECTION: Validation du service
+    const validServices = ['marketing', 'commerce', 'achat', 'informatique', 'logistique', 'rh', 'comptabilité', 'general'];
     
-    // Récupérer les informations de l'utilisateur depuis la base de données
+    // Récupérer les informations de l'utilisateur
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
     
-    // Créer un nouveau post avec les réactions initialisées
+    // CORRECTION: Déterminer le service du post
+    let postService = service || 'general';
+    
+    // Si le service choisi est 'general' mais que l'utilisateur a un service spécifique
+    if (postService === 'general' && user.service && user.service !== 'general') {
+      postService = user.service;
+      console.log(`Service 'general' choisi mais utilisateur du service '${user.service}', utilisation du service utilisateur`);
+    }
+    
+    // Validation du service
+    if (!validServices.includes(postService)) {
+      console.error(`Service invalide: ${postService}`);
+      return res.status(400).json({ 
+        message: 'Service invalide', 
+        validServices: validServices,
+        receivedService: postService
+      });
+    }
+    
+    console.log(`Création du post avec le service: ${postService}`);
+    
+    // Créer un nouveau post
     const newPost = new Post({
       content,
       title: title || '',
@@ -307,9 +272,8 @@ router.post('/', auth, upload.array('files', 10), async (req, res) => {
       role: user.role,
       userId: req.user.id,
       status: user.isAdmin ? 'approved' : 'pending',
-      service: user.service,
+      service: postService, // CORRECTION: Utiliser le service validé
       tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
-      // Initialiser les réactions
       reactions: {
         like: { count: 0, users: [] },
         love: { count: 0, users: [] },
@@ -317,44 +281,24 @@ router.post('/', auth, upload.array('files', 10), async (req, res) => {
         interesting: { count: 0, users: [] },
         welcome: { count: 0, users: [] }
       },
-      likes: 0 // Compatibilité avec l'ancien système
+      likes: 0
     });
     
-    // Traiter les fichiers téléchargés
+    // Traitement des fichiers (code existant inchangé)
     if (req.files && req.files.length > 0) {
       console.log("Traitement des fichiers pour le post...");
       
-      // Pour la rétrocompatibilité - uniquement pour les images
       newPost.images = req.files
         .filter(file => file.mimetype.startsWith('image/'))
         .map(file => {
           const pathParts = file.path.split(path.sep);
           const relativePath = '/' + pathParts.slice(-3).join('/');
-          console.log("Chemin d'image relatif généré:", relativePath);
-          
-          if (fs.existsSync(file.path)) {
-            console.log("Le fichier existe bien à:", file.path);
-          } else {
-            console.error("ALERTE: Le fichier n'existe pas à:", file.path);
-          }
-          
           return relativePath;
         });
       
-      console.log("Images ajoutées au post:", newPost.images);
-      
-      if (newPost.images.length > 0) {
-        const firstImage = newPost.images[0];
-        const absolutePath = path.join(__dirname, '..', firstImage.substring(1));
-        console.log("Chemin absolu de la première image:", absolutePath);
-        console.log("Ce fichier existe-t-il?", fs.existsSync(absolutePath));
-      }
-      
-      // Nouveau format structuré pour tous les fichiers
       newPost.files = req.files.map(file => {
         const pathParts = file.path.split(path.sep);
         const relativePath = '/' + pathParts.slice(-3).join('/');
-        console.log("Chemin de fichier relatif généré:", relativePath);
         return {
           path: relativePath,
           originalName: file.originalname,
@@ -362,10 +306,6 @@ router.post('/', auth, upload.array('files', 10), async (req, res) => {
           size: file.size
         };
       });
-      
-      console.log("Tous les fichiers ajoutés au post:", newPost.files);
-    } else {
-      console.log("Aucun fichier reçu avec cette requête");
     }
     
     // Sauvegarder le post
@@ -374,15 +314,13 @@ router.post('/', auth, upload.array('files', 10), async (req, res) => {
       id: newPost._id,
       content: newPost.content,
       service: newPost.service,
+      status: newPost.status,
       imagesCount: newPost.images?.length || 0,
       filesCount: newPost.files?.length || 0
     });
     
-    console.log("Images du post créé:", newPost.images);
-    console.log("Fichiers du post créé:", newPost.files);
-    console.log("========== FIN DEBUG UPLOAD ==========");
+    console.log("========== FIN CRÉATION POST ==========");
     
-    // Créer manuellement une copie du post pour la réponse
     const responsePost = {
       ...newPost.toObject(),
       images: newPost.images || [],
@@ -396,26 +334,43 @@ router.post('/', auth, upload.array('files', 10), async (req, res) => {
     console.error("Erreur lors de la création du post:", err);
     res.status(500).json({ 
       message: "Erreur lors de la création du post", 
-      error: err.message,
-      stack: err.stack 
+      error: err.message
     });
   }
 });
 
-// Route pour récupérer tous les posts avec les réactions
+// Route pour récupérer tous les posts approuvés - EXCLUDE LES POSTS GENERAL
 router.get('/', async (req, res) => {
   try {
-    const posts = await Post.find({ status: 'approved' })
+    console.log("========== RÉCUPÉRATION TOUS LES POSTS ==========");
+    
+    // CORRECTION: Récupérer seulement les posts approuvés ET qui ne sont pas 'general'
+    const posts = await Post.find({ 
+      status: 'approved',
+      service: { $ne: 'general' } // Exclure les posts du service 'general'
+    })
       .sort({ createdAt: -1 })
       .populate('userId', 'firstName lastName avatar');
     
-    // Formater les posts avec les réactions
-    const formattedPosts = posts.map(post => ({
-      ...post.toObject(),
-      reactions: post.getFormattedReactions(),
-      totalReactions: post.getTotalReactions()
-    }));
+    console.log(`Posts trouvés (hors général): ${posts.length}`);
+    console.log("Services des posts récupérés:", [...new Set(posts.map(p => p.service))].join(', '));
     
+    const formattedPosts = posts.map(post => {
+      const formatted = {
+        ...post.toObject(),
+        reactions: post.getFormattedReactions(),
+        totalReactions: post.getTotalReactions()
+      };
+      
+      // Ajouter l'avatar de l'utilisateur si disponible
+      if (post.userId && post.userId.avatar) {
+        formatted.authorAvatar = post.userId.avatar;
+      }
+      
+      return formatted;
+    });
+    
+    console.log("========== FIN RÉCUPÉRATION TOUS LES POSTS ==========");
     res.json(formattedPosts);
   } catch (err) {
     console.error("Erreur lors de la récupération des posts:", err);
@@ -423,38 +378,68 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Route pour récupérer les posts par service avec réactions
+// Route pour récupérer les posts par service - CORRIGÉE
 router.get('/service/:service', async (req, res) => {
   try {
-    console.log(`===== DÉBUT DÉBOGAGE ROUTE SERVICE =====`);
-    console.log(`Service demandé: "${req.params.service}"`);
+    const requestedService = req.params.service;
+    console.log(`========== RÉCUPÉRATION POSTS SERVICE: ${requestedService} ==========`);
     
+    // CORRECTION: Si c'est 'general', retourner un tableau vide pour le moment
+    if (requestedService === 'general') {
+      console.log("Service 'general' demandé - retour d'un tableau vide");
+      console.log("========== FIN RÉCUPÉRATION SERVICE GENERAL ==========");
+      return res.json([]);
+    }
+    
+    // Validation du service
+    const validServices = ['marketing', 'commerce', 'achat', 'informatique', 'logistique', 'rh', 'comptabilité'];
+    if (!validServices.includes(requestedService)) {
+      console.error(`Service invalide demandé: ${requestedService}`);
+      return res.status(400).json({ 
+        message: 'Service invalide',
+        requestedService: requestedService,
+        validServices: validServices
+      });
+    }
+    
+    // Débuggage - voir tous les posts disponibles
     const allPosts = await Post.find({ status: 'approved' });
     console.log(`Nombre total de posts approuvés: ${allPosts.length}`);
     console.log(`Services disponibles dans les posts: ${[...new Set(allPosts.map(p => p.service))].join(', ')}`);
     
+    // Récupérer les posts du service spécifique
     const posts = await Post.find({ 
-      service: req.params.service,
+      service: requestedService,
       status: 'approved'
-    }).sort({ createdAt: -1 });
+    })
+      .sort({ createdAt: -1 })
+      .populate('userId', 'firstName lastName avatar');
     
-    console.log(`Nombre de posts trouvés pour le service "${req.params.service}": ${posts.length}`);
+    console.log(`Posts trouvés pour le service "${requestedService}": ${posts.length}`);
     
     if (posts.length === 0 && allPosts.length > 0) {
       console.log('Exemples de posts disponibles:');
       allPosts.slice(0, 3).forEach((post, i) => {
-        console.log(`Post ${i+1}: ID=${post._id}, Service=${post.service}, Status=${post.status}`);
+        console.log(`Post ${i+1}: ID=${post._id}, Service="${post.service}", Status=${post.status}, Auteur=${post.author}`);
       });
     }
     
-    // Formater les posts avec les réactions
-    const formattedPosts = posts.map(post => ({
-      ...post.toObject(),
-      reactions: post.getFormattedReactions(),
-      totalReactions: post.getTotalReactions()
-    }));
+    const formattedPosts = posts.map(post => {
+      const formatted = {
+        ...post.toObject(),
+        reactions: post.getFormattedReactions(),
+        totalReactions: post.getTotalReactions()
+      };
+      
+      // Ajouter l'avatar de l'utilisateur si disponible
+      if (post.userId && post.userId.avatar) {
+        formatted.authorAvatar = post.userId.avatar;
+      }
+      
+      return formatted;
+    });
     
-    console.log(`===== FIN DÉBOGAGE ROUTE SERVICE =====`);
+    console.log(`========== FIN RÉCUPÉRATION SERVICE ${requestedService} ==========`);
     res.json(formattedPosts);
   } catch (err) {
     console.error("Erreur lors de la récupération des posts par service:", err);
@@ -465,14 +450,24 @@ router.get('/service/:service', async (req, res) => {
 // Route pour récupérer les posts en attente (admin seulement)
 router.get('/pending', auth, admin, async (req, res) => {
   try {
-    const pendingPosts = await Post.find({ status: 'pending' }).sort({ createdAt: -1 });
+    const pendingPosts = await Post.find({ status: 'pending' })
+      .sort({ createdAt: -1 })
+      .populate('userId', 'firstName lastName avatar');
     
-    // Formater les posts avec les réactions
-    const formattedPosts = pendingPosts.map(post => ({
-      ...post.toObject(),
-      reactions: post.getFormattedReactions(),
-      totalReactions: post.getTotalReactions()
-    }));
+    const formattedPosts = pendingPosts.map(post => {
+      const formatted = {
+        ...post.toObject(),
+        reactions: post.getFormattedReactions(),
+        totalReactions: post.getTotalReactions()
+      };
+      
+      // Ajouter l'avatar de l'utilisateur si disponible
+      if (post.userId && post.userId.avatar) {
+        formatted.authorAvatar = post.userId.avatar;
+      }
+      
+      return formatted;
+    });
     
     res.json(formattedPosts);
   } catch (err) {
@@ -490,12 +485,10 @@ router.put('/:id/approve', auth, admin, async (req, res) => {
       return res.status(404).json({ message: "Post non trouvé" });
     }
     
-    // Mettre à jour le statut
     post.status = 'approved';
     post.approvedBy = req.user.id;
     post.approvedAt = Date.now();
     
-    // Sauvegarder le post
     await post.save();
     
     // Envoyer des notifications par email si elles n'ont pas déjà été envoyées
@@ -512,15 +505,12 @@ router.put('/:id/approve', auth, admin, async (req, res) => {
           
           post.notificationSent = true;
           await post.save();
-        } else {
-          console.log(`Aucun utilisateur avec notifications activées trouvé`);
         }
       } catch (error) {
         console.error('Erreur lors de l\'envoi des notifications:', error);
       }
     }
     
-    // Retourner le post avec les réactions formatées
     const responsePost = {
       ...post.toObject(),
       reactions: post.getFormattedReactions(),
@@ -549,7 +539,6 @@ router.put('/:id/reject', auth, admin, async (req, res) => {
     post.rejectionReason = rejectionReason || 'Aucune raison spécifiée';
     await post.save();
     
-    // Retourner le post avec les réactions formatées
     const responsePost = {
       ...post.toObject(),
       reactions: post.getFormattedReactions(),
@@ -649,20 +638,47 @@ router.post('/test-upload', upload.array('files', 10), (req, res) => {
   });
 });
 
-// Vérifier les permissions des dossiers
-['uploads', 'uploads/images', 'uploads/pdfs', 'uploads/excel', 'uploads/other'].forEach(dir => {
-  const fullPath = path.join(__dirname, '..', dir);
-  if (fs.existsSync(fullPath)) {
-    try {
-      const testFile = path.join(fullPath, '.permission-test');
-      fs.writeFileSync(testFile, 'test');
-      fs.unlinkSync(testFile);
-      console.log(`✅ Permissions d'écriture OK pour ${dir}`);
-    } catch (e) {
-      console.error(`❌ ERREUR: Impossible d'écrire dans ${dir}:`, e.message);
-    }
-  } else {
-    console.error(`❌ ERREUR: Le dossier ${dir} n'existe pas`);
+// Route de debug pour analyser les services des posts
+router.get('/debug/services', async (req, res) => {
+  try {
+    const posts = await Post.find({});
+    const serviceStats = {};
+    
+    posts.forEach(post => {
+      const service = post.service || 'undefined';
+      if (!serviceStats[service]) {
+        serviceStats[service] = {
+          count: 0,
+          statuses: {},
+          examples: []
+        };
+      }
+      serviceStats[service].count++;
+      
+      const status = post.status || 'undefined';
+      if (!serviceStats[service].statuses[status]) {
+        serviceStats[service].statuses[status] = 0;
+      }
+      serviceStats[service].statuses[status]++;
+      
+      if (serviceStats[service].examples.length < 3) {
+        serviceStats[service].examples.push({
+          id: post._id,
+          author: post.author,
+          content: post.content.substring(0, 50) + '...',
+          createdAt: post.createdAt
+        });
+      }
+    });
+    
+    res.json({
+      totalPosts: posts.length,
+      serviceBreakdown: serviceStats,
+      validServices: ['marketing', 'commerce', 'achat', 'informatique', 'logistique', 'rh', 'comptabilité', 'general']
+    });
+  } catch (err) {
+    console.error("Erreur lors du debug des services:", err);
+    res.status(500).json({ message: "Erreur lors du debug" });
   }
 });
 

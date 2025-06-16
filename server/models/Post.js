@@ -1,4 +1,4 @@
-// server/models/Post.js - Version avec système de réactions
+// server/models/Post.js - Version corrigée avec services mis à jour
 const mongoose = require('mongoose');
 
 const PostSchema = new mongoose.Schema({
@@ -22,12 +22,17 @@ const PostSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  // CORRECTION: Services mis à jour et validation stricte
   service: {
     type: String,
-    enum: ['marketing', 'commerce', 'achat', 'informatique', 'logistique', 'rh', 'comptabilité', 'general'],
-    default: 'general'
+    enum: {
+      values: ['marketing', 'commerce', 'achat', 'informatique', 'logistique', 'rh', 'comptabilité', 'general'],
+      message: 'Service invalide. Services autorisés: marketing, commerce, achat, informatique, logistique, rh, comptabilité, general'
+    },
+    default: 'general',
+    required: true
   },
-  // NOUVEAU: Système de réactions
+  // Système de réactions complet
   reactions: {
     like: {
       count: { type: Number, default: 0 },
@@ -75,7 +80,6 @@ const PostSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  // SUPPRIMÉ: comments (plus utilisé)
   status: {
     type: String,
     enum: ['pending', 'approved', 'rejected'],
@@ -105,6 +109,31 @@ const PostSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true
+});
+
+// Middleware de validation avant sauvegarde
+PostSchema.pre('save', function(next) {
+  console.log(`Sauvegarde du post avec service: ${this.service}`);
+  
+  // Validation supplémentaire du service
+  const validServices = ['marketing', 'commerce', 'achat', 'informatique', 'logistique', 'rh', 'comptabilité', 'general'];
+  if (!validServices.includes(this.service)) {
+    const error = new Error(`Service invalide: ${this.service}. Services autorisés: ${validServices.join(', ')}`);
+    return next(error);
+  }
+  
+  // Initialiser les réactions si elles n'existent pas
+  if (!this.reactions) {
+    this.reactions = {
+      like: { count: 0, users: [] },
+      love: { count: 0, users: [] },
+      bravo: { count: 0, users: [] },
+      interesting: { count: 0, users: [] },
+      welcome: { count: 0, users: [] }
+    };
+  }
+  
+  next();
 });
 
 // Méthode pour calculer le total des réactions
@@ -171,6 +200,16 @@ PostSchema.methods.getFormattedReactions = function() {
   }
   
   return formatted;
+};
+
+// Méthode statique pour obtenir les services valides
+PostSchema.statics.getValidServices = function() {
+  return ['marketing', 'commerce', 'achat', 'informatique', 'logistique', 'rh', 'comptabilité', 'general'];
+};
+
+// Méthode statique pour valider un service
+PostSchema.statics.isValidService = function(service) {
+  return this.getValidServices().includes(service);
 };
 
 module.exports = mongoose.model('Post', PostSchema);

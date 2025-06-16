@@ -1,8 +1,10 @@
+// client/src/App.js - Version complète corrigée pour le filtrage par service
 import React, { useState, useEffect, Suspense } from 'react';
 import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
 import './App.css';
 import Header from './components/layout/Header';
 import Avatar from './components/ui/Avatar';
+import EmptyState from './components/ui/EmptyState';
 import api from './services/api';
 import AdminPanel from './components/admin/AdminPanel';
 import Post from './components/posts/Post';
@@ -87,13 +89,13 @@ function App() {
       }
       
       try {
-        // Charger les posts, qu'on soit connecté ou non
+        // Charger les posts
         const res = await api.get('/posts');
         console.log("Posts chargés:", res.data);
         setPosts(res.data);
-        setFilteredPosts(res.data);
       } catch (err) {
         console.error("Erreur lors du chargement des posts:", err);
+        setPosts([]);
       }
       
       setLoading(false);
@@ -102,26 +104,54 @@ function App() {
     loadInitialData();
   }, []);
 
-  // Effet pour filtrer les posts
+  // Effet pour filtrer les posts - LOGIQUE CORRIGÉE
   useEffect(() => {
-    let filtered = posts;
+    let filtered = [];
     
-    // Filtre par recherche
+    console.log("=== DÉBUT FILTRAGE ===");
+    console.log("Onglet actif:", activeTab);
+    console.log("Nombre total de posts:", posts.length);
+    console.log("Terme de recherche:", searchQuery);
+    
+    // Si c'est l'onglet général, ne rien afficher pour le moment
+    if (activeTab === 'general') {
+      console.log("Onglet général sélectionné - aucun post affiché");
+      filtered = []; // Vide pour le moment
+    } else {
+      // Filtrer par service/catégorie
+      console.log("Services disponibles dans les posts:");
+      posts.forEach(post => {
+        console.log(`- Post ${post._id}: service="${post.service}", category="${post.category}"`);
+      });
+      
+      // Filtrer par service OU category (pour compatibilité)
+      filtered = posts.filter(post => {
+        const postService = post.service || post.category;
+        const matches = postService === activeTab;
+        if (matches) {
+          console.log(`✅ Post ${post._id} correspond au service "${activeTab}"`);
+        }
+        return matches;
+      });
+      
+      console.log(`Posts trouvés pour le service "${activeTab}":`, filtered.length);
+    }
+    
+    // Filtre par recherche si une recherche est active
     if (searchQuery.trim() !== '') {
       const query = searchQuery.toLowerCase().trim();
+      console.log("Application du filtre de recherche:", query);
+      
       filtered = filtered.filter(post => 
         (post.content && post.content.toLowerCase().includes(query)) ||
-        (post.author && post.author.firstName && post.author.firstName.toLowerCase().includes(query)) ||
-        (post.author && post.author.lastName && post.author.lastName.toLowerCase().includes(query)) ||
-        (post.author && post.author.role && post.author.role.toLowerCase().includes(query))
+        (post.author && post.author.toLowerCase().includes(query)) ||
+        (post.role && post.role.toLowerCase().includes(query))
       );
+      
+      console.log(`Posts après recherche:`, filtered.length);
     }
     
-    // Filtre par onglet
-    if (activeTab !== 'general') {
-      filtered = filtered.filter(post => post.category === activeTab);
-    }
-    
+    console.log("=== FIN FILTRAGE ===");
     setFilteredPosts(filtered);
   }, [searchQuery, activeTab, posts]);
 
@@ -294,14 +324,25 @@ function App() {
     setFilePreviewUrls(newUrls);
   };
 
-  // Création d'un nouveau post
+  // Création d'un nouveau post - LOGIQUE CORRIGÉE
   const handleCreatePost = async () => {
     if (!newPostContent.trim() && selectedFiles.length === 0) return;
     
     try {
       const formData = new FormData();
       formData.append('content', newPostContent);
-      formData.append('category', postService);
+      
+      // CORRECTION: Utiliser le service de l'utilisateur connecté si pas de service spécifique choisi
+      let serviceToUse = postService;
+      if (serviceToUse === 'general' && currentUser?.service && currentUser.service !== 'general') {
+        serviceToUse = currentUser.service;
+        console.log(`Service général choisi mais utilisateur a un service spécifique: ${serviceToUse}`);
+      }
+      
+      // Utiliser 'service' au lieu de 'category' pour correspondre au backend
+      formData.append('service', serviceToUse);
+      
+      console.log(`Création du post avec le service: ${serviceToUse}`);
       
       if (selectedFiles.length > 0) {
         selectedFiles.forEach(file => {
@@ -311,7 +352,9 @@ function App() {
       
       const res = await api.post('/posts', formData);
       
+      // Si l'utilisateur est admin, ajouter directement le post à la liste
       if (currentUser?.isAdmin) {
+        console.log("Post créé par un admin, ajout direct à la liste");
         setPosts([res.data, ...posts]);
       } else {
         alert("Votre publication a été soumise et sera visible après modération.");
@@ -328,7 +371,7 @@ function App() {
     }
   };
 
-  // Rendu de la barre latérale MODIFIÉE avec avatar
+  // Rendu de la barre latérale
   const renderSidebar = () => {
     return (
       <div className="sidebar">
@@ -355,6 +398,12 @@ function App() {
           className="sidebar-button"
           onClick={() => {
             if (isLoggedIn) {
+              // CORRECTION: Définir le service par défaut selon l'utilisateur
+              if (currentUser?.service && currentUser.service !== 'general') {
+                setPostService(currentUser.service);
+              } else {
+                setPostService('general');
+              }
               setShowCreatePostModal(true);
             } else {
               setShowLoginModal(true);
@@ -452,7 +501,7 @@ function App() {
     return preparedPost;
   };
 
-  // Modal de création de post
+  // Modal de création de post - LOGIQUE CORRIGÉE
   const renderCreatePostModal = () => {
     if (!showCreatePostModal) return null;
 
@@ -531,14 +580,20 @@ function App() {
                 onChange={(e) => setPostService(e.target.value)}
                 className="service-select"
               >
+                {/* CORRECTION: Afficher le service de l'utilisateur en premier */}
+                {currentUser?.service && currentUser.service !== 'general' && (
+                  <option value={currentUser.service}>
+                    {currentUser.service.charAt(0).toUpperCase() + currentUser.service.slice(1)} (Mon service)
+                  </option>
+                )}
                 <option value="general">Général</option>
-                <option value="rh">RH</option>
-                <option value="commerce">Commerce</option>
-                <option value="marketing">Marketing</option>
-                <option value="informatique">Informatique</option>
-                <option value="achat">Achat</option>
-                <option value="comptabilité">Compta</option>
-                <option value="logistique">Logistique</option>
+                {currentUser?.service !== 'rh' && <option value="rh">RH</option>}
+                {currentUser?.service !== 'commerce' && <option value="commerce">Commerce</option>}
+                {currentUser?.service !== 'marketing' && <option value="marketing">Marketing</option>}
+                {currentUser?.service !== 'informatique' && <option value="informatique">Informatique</option>}
+                {currentUser?.service !== 'achat' && <option value="achat">Achat</option>}
+                {currentUser?.service !== 'comptabilité' && <option value="comptabilité">Comptabilité</option>}
+                {currentUser?.service !== 'logistique' && <option value="logistique">Logistique</option>}
               </select>
             </div>
             
@@ -759,7 +814,7 @@ function App() {
                     <option value="marketing">Marketing</option>
                     <option value="informatique">Informatique</option>
                     <option value="achat">Achat</option>
-                    <option value="comptabilité">Compta</option>
+                    <option value="comptabilité">Comptabilité</option>
                     <option value="logistique">Logistique</option>
                   </select>
                 </div>
@@ -873,7 +928,7 @@ function App() {
               onSearch={setSearchQuery}
             />
             
-            {/* Section utilisateur/authentification MODIFIÉE - sans avatar */}
+            {/* Section utilisateur/authentification */}
             <div className="header-user-section">
               {isLoggedIn && currentUser && (
                 <div className="user-menu">
@@ -936,8 +991,24 @@ function App() {
             </div>
             
             <div className="feed">
-              {filteredPosts.length > 0 ? (
-                // Afficher les posts filtrés avec l'utilisateur connecté
+              {/* AFFICHAGE CONDITIONNEL AMÉLIORÉ avec EmptyState moderne */}
+              {activeTab === 'general' ? (
+                // Section Général - État vide moderne
+                <EmptyState 
+                  type="general"
+                  isLoggedIn={isLoggedIn}
+                  currentUserService={currentUser?.service}
+                  onCreatePost={() => {
+                    if (currentUser?.service && currentUser.service !== 'general') {
+                      setPostService(currentUser.service);
+                    } else {
+                      setPostService('general');
+                    }
+                    setShowCreatePostModal(true);
+                  }}
+                />
+              ) : filteredPosts.length > 0 ? (
+                // Afficher les posts filtrés
                 filteredPosts.map(post => (
                   <Post 
                     key={post._id || post.id} 
@@ -946,12 +1017,17 @@ function App() {
                   />
                 ))
               ) : (
-                // Afficher un message si aucun résultat
-                searchQuery.trim() !== '' && (
-                  <div className="no-results-message">
-                    Aucun résultat trouvé pour votre recherche.
-                  </div>
-                )
+                // Aucun post trouvé pour ce service - État vide moderne
+                <EmptyState 
+                  type={searchQuery.trim() !== '' ? 'search' : activeTab}
+                  searchQuery={searchQuery}
+                  isLoggedIn={isLoggedIn}
+                  currentUserService={currentUser?.service}
+                  onCreatePost={() => {
+                    setPostService(activeTab);
+                    setShowCreatePostModal(true);
+                  }}
+                />
               )}
             </div>
           </>

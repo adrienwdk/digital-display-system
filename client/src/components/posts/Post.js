@@ -1,4 +1,4 @@
-// client/src/components/posts/Post.js
+// client/src/components/posts/Post.js - Version complète moderne avec UX améliorée
 import React, { useState, useEffect } from 'react';
 import ImageGallery from './ImageGallery';
 import Avatar from '../ui/Avatar';
@@ -12,6 +12,7 @@ const Post = ({ post, currentUser }) => {
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [showReactionDetails, setShowReactionDetails] = useState(false);
   const [pickerTimeout, setPickerTimeout] = useState(null);
+  const [isExpanded, setIsExpanded] = useState(false);
   
   // États pour les réactions
   const [reactions, setReactions] = useState(post.reactions || {
@@ -28,13 +29,13 @@ const Post = ({ post, currentUser }) => {
   // Hook pour les animations
   const { animateReaction, animateError } = useReactionAnimations();
 
-  // Configuration des types de réactions
+  // Configuration des types de réactions avec couleurs modernes
   const reactionTypes = {
-    like: { emoji: '👍', label: 'J\'aime', color: '#1877f2' },
-    love: { emoji: '❤️', label: 'J\'adore', color: '#e74c3c' },
-    bravo: { emoji: '👏', label: 'Bravo', color: '#f39c12' },
-    interesting: { emoji: '🤔', label: 'Intéressant', color: '#9b59b6' },
-    welcome: { emoji: '👋', label: 'Bienvenue', color: '#2ecc71' }
+    like: { emoji: '👍', label: 'J\'aime', color: '#3b82f6' },
+    love: { emoji: '❤️', label: 'J\'adore', color: '#ef4444' },
+    bravo: { emoji: '👏', label: 'Bravo', color: '#f59e0b' },
+    interesting: { emoji: '🤔', label: 'Intéressant', color: '#8b5cf6' },
+    welcome: { emoji: '👋', label: 'Bienvenue', color: '#10b981' }
   };
 
   // Initialiser les styles d'animation au montage
@@ -79,7 +80,6 @@ const Post = ({ post, currentUser }) => {
     setLoading(true);
     setShowReactionPicker(false);
 
-    // Nettoyer le timeout du picker
     if (pickerTimeout) {
       clearTimeout(pickerTimeout);
       setPickerTimeout(null);
@@ -88,11 +88,9 @@ const Post = ({ post, currentUser }) => {
     try {
       const response = await reactionsService.toggleReaction(post._id, reactionType, userReaction);
       
-      // Mettre à jour l'état local
       setReactions(response.reactions);
       setUserReaction(response.userReaction);
       
-      // Animations seulement si la réaction a été ajoutée (pas retirée)
       if (response.userReaction === reactionType) {
         const buttonElement = event?.target.closest('.reaction-button') || 
                              document.querySelector(`[data-post-id="${post._id}"] .reaction-button`);
@@ -110,7 +108,6 @@ const Post = ({ post, currentUser }) => {
     } catch (error) {
       console.error('Erreur lors de la réaction:', error);
       
-      // Animation d'erreur
       const buttonElement = event?.target.closest('.reaction-button') || 
                            document.querySelector(`[data-post-id="${post._id}"] .reaction-button`);
       if (buttonElement) {
@@ -128,7 +125,7 @@ const Post = ({ post, currentUser }) => {
     if (!loading && !showReactionPicker) {
       const timeout = setTimeout(() => {
         setShowReactionPicker(true);
-      }, 600); // Délai plus long pour éviter l'ouverture accidentelle
+      }, 600);
       setPickerTimeout(timeout);
     }
   };
@@ -139,7 +136,6 @@ const Post = ({ post, currentUser }) => {
       setPickerTimeout(null);
     }
     
-    // Fermer après un délai si pas d'interaction avec le picker
     setTimeout(() => {
       const picker = document.querySelector('.reaction-picker:hover');
       const button = document.querySelector('.reaction-button:hover');
@@ -159,50 +155,32 @@ const Post = ({ post, currentUser }) => {
 
   // Obtenir la classe CSS pour l'indicateur de département
   const getDepartmentBadgeClass = (dept) => {
-    switch(dept) {
-      case 'marketing':
-        return '#28a745';
-      case 'rh':
-        return '#17a2b8';
-      case 'informatique':
-        return '#007bff';
-      case 'commerce':
-        return '#fd7e14';
-      case 'achat':
-        return '#6f42c1';
-      case 'comptabilité':
-        return '#ffc107';
-      case 'logistique':
-        return '#20c997';
-      case 'general':
-        return '#6c757d';
-      default:
-        return '#6c757d';
-    }
+    const colors = {
+      marketing: '#10b981',
+      rh: '#3b82f6',
+      informatique: '#8b5cf6',
+      commerce: '#f59e0b',
+      achat: '#6366f1',
+      comptabilité: '#ef4444',
+      logistique: '#06b6d4',
+      general: '#6b7280'
+    };
+    return colors[dept] || colors.general;
   };
 
   // Formater le nom du département pour l'affichage
   const formatDepartmentName = (dept) => {
-    switch(dept) {
-      case 'marketing':
-        return 'Marketing';
-      case 'rh':
-        return 'RH';
-      case 'informatique':
-        return 'Informatique';
-      case 'commerce':
-        return 'Commerce';
-      case 'achat':
-        return 'Achat';
-      case 'comptabilité':
-        return 'Compta';
-      case 'logistique':
-        return 'Logistique';
-      case 'general':
-        return 'Général';
-      default:
-        return dept ? dept.charAt(0).toUpperCase() + dept.slice(1) : 'Non défini';
-    }
+    const names = {
+      marketing: 'Marketing',
+      rh: 'RH',
+      informatique: 'IT',
+      commerce: 'Commerce',
+      achat: 'Achats',
+      comptabilité: 'Compta',
+      logistique: 'Logistique',
+      general: 'Général'
+    };
+    return names[dept] || (dept ? dept.charAt(0).toUpperCase() + dept.slice(1) : 'Non défini');
   };
 
   // Calculer le nombre total de réactions
@@ -244,17 +222,18 @@ const Post = ({ post, currentUser }) => {
   // Déterminer le layout des images selon le nombre
   const getImageLayout = (imageCount) => {
     switch (imageCount) {
-      case 1:
-        return 'single';
-      case 2:
-        return 'double';
-      case 3:
-        return 'triple';
-      case 4:
-        return 'quad';
-      default:
-        return 'quad';
+      case 1: return 'single';
+      case 2: return 'double';
+      case 3: return 'triple';
+      case 4: return 'quad';
+      default: return 'quad';
     }
+  };
+
+  // Fonction pour tronquer le texte
+  const truncateText = (text, maxLength = 280) => {
+    if (!text || text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
   };
 
   // Rendu des images avec layout adaptatif
@@ -285,10 +264,10 @@ const Post = ({ post, currentUser }) => {
             <div className="image-overlay">
               <div className="zoom-icon">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="11" cy="11" r="8" stroke="white" strokeWidth="2"/>
-                  <path d="M21 21l-4.35-4.35" stroke="white" strokeWidth="2"/>
-                  <line x1="8" y1="11" x2="14" y2="11" stroke="white" strokeWidth="2"/>
-                  <line x1="11" y1="8" x2="11" y2="14" stroke="white" strokeWidth="2"/>
+                  <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/>
+                  <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2"/>
+                  <line x1="8" y1="11" x2="14" y2="11" stroke="currentColor" strokeWidth="2"/>
+                  <line x1="11" y1="8" x2="11" y2="14" stroke="currentColor" strokeWidth="2"/>
                 </svg>
               </div>
             </div>
@@ -300,37 +279,59 @@ const Post = ({ post, currentUser }) => {
 
   // Préparer les données utilisateur pour l'avatar
   const getAuthorData = () => {
-    console.log('Post author data:', post.author);
-    console.log('Post authorAvatar:', post.authorAvatar);
-    
     if (typeof post.author === 'string') {
       const nameParts = post.author.split(' ');
-      const authorData = {
+      return {
         firstName: nameParts[0] || '',
         lastName: nameParts.slice(1).join(' ') || '',
         avatar: post.authorAvatar || null
       };
-      console.log('Author data created:', authorData);
-      return authorData;
     }
     
     if (typeof post.author === 'object') {
-      const authorData = {
+      return {
         firstName: post.author.firstName || '',
         lastName: post.author.lastName || '',
         avatar: post.author.avatar || post.authorAvatar || null
       };
-      console.log('Author data from object:', authorData);
-      return authorData;
     }
 
-    const fallbackData = {
+    return {
       firstName: 'Utilisateur',
       lastName: '',
       avatar: null
     };
-    console.log('Using fallback data:', fallbackData);
-    return fallbackData;
+  };
+
+  // Calculer le temps relatif avec plus de précision
+  const getRelativeTime = () => {
+    if (!post.time) return '';
+    
+    // Si c'est déjà formaté, le retourner tel quel
+    if (typeof post.time === 'string' && post.time.includes('Il y a')) {
+      return post.time;
+    }
+    
+    const now = new Date();
+    const postDate = new Date(post.createdAt || post.time);
+    const diffInSeconds = Math.floor((now - postDate) / 1000);
+    
+    if (diffInSeconds < 60) return "À l'instant";
+    if (diffInSeconds < 3600) {
+      const minutes = Math.floor(diffInSeconds / 60);
+      return `Il y a ${minutes}min`;
+    }
+    if (diffInSeconds < 86400) {
+      const hours = Math.floor(diffInSeconds / 3600);
+      return `Il y a ${hours}h`;
+    }
+    const days = Math.floor(diffInSeconds / 86400);
+    if (days < 7) return `Il y a ${days}j`;
+    
+    return postDate.toLocaleDateString('fr-FR', { 
+      day: 'numeric', 
+      month: 'short' 
+    });
   };
 
   // Fermer le picker de réactions si on clique ailleurs
@@ -350,22 +351,26 @@ const Post = ({ post, currentUser }) => {
     };
   }, [showReactionPicker, pickerTimeout]);
 
-  console.log("Rendering post with images:", post.images);
+  const shouldTruncate = post.content && post.content.length > 280;
+  const displayContent = isExpanded ? post.content : truncateText(post.content);
 
   return (
     <>
-      <div className="post" data-post-id={post._id}>
-        <div className="post-header">
+      <article className="post" data-post-id={post._id}>
+        {/* En-tête du post avec informations utilisateur */}
+        <header className="post-header">
           <Avatar 
             user={getAuthorData()} 
             size="medium"
           />
           
           <div className="post-meta">
-            <div className="post-author">
-              {typeof post.author === 'string' ? post.author : `${post.author?.firstName || ''} ${post.author?.lastName || ''}`.trim()}
+            <div className="post-author-info">
+              <h3 className="post-author">
+                {typeof post.author === 'string' ? post.author : `${post.author?.firstName || ''} ${post.author?.lastName || ''}`.trim()}
+              </h3>
+              <p className="post-role">{post.role}</p>
             </div>
-            <div className="post-role">{post.role}</div>
           </div>
           
           <div className="post-header-right">
@@ -374,37 +379,45 @@ const Post = ({ post, currentUser }) => {
                 content={`Service : ${formatDepartmentName(post.service || post.department)}`}
                 position="bottom"
               >
-                <div 
+                <span 
                   className="department-badge"
                   style={{ 
-                    padding: '3px 8px', 
-                    borderRadius: '12px', 
-                    backgroundColor: getDepartmentBadgeClass(post.service || post.department),
-                    color: '#fff',
-                    fontSize: '11px',
-                    fontWeight: 'bold',
-                    marginBottom: '5px'
+                    backgroundColor: getDepartmentBadgeClass(post.service || post.department)
                   }}
                 >
                   {formatDepartmentName(post.service || post.department)}
-                </div>
+                </span>
               </Tooltip>
             )}
-            <div className="post-time">{post.time}</div>
+            <time className="post-time" dateTime={post.createdAt}>
+              {getRelativeTime()}
+            </time>
+          </div>
+        </header>
+        
+        {/* Contenu du post */}
+        <div className="post-content">
+          {post.title && (
+            <h2 className="post-title">{post.title}</h2>
+          )}
+          
+          <div className="post-text">
+            {displayContent}
+            {shouldTruncate && (
+              <button 
+                className="expand-button"
+                onClick={() => setIsExpanded(!isExpanded)}
+              >
+                {isExpanded ? 'Voir moins' : 'Voir plus'}
+              </button>
+            )}
           </div>
         </div>
         
-        <div className="post-content">
-          {post.title && (
-            <h3 className="post-title">
-              {post.title}
-            </h3>
-          )}
-          <div className="post-text">{post.content}</div>
-        </div>
-        
+        {/* Images du post */}
         {renderImages()}
         
+        {/* Tags du post */}
         {post.tags && post.tags.length > 0 && (
           <div className="post-tags">
             {post.tags.map((tag, index) => (
@@ -424,10 +437,10 @@ const Post = ({ post, currentUser }) => {
               position="top"
               delay={300}
             >
-              <div 
+              <button 
                 className="reactions-summary"
                 onClick={() => setShowReactionDetails(!showReactionDetails)}
-                title="Voir qui a réagi"
+                aria-label="Voir qui a réagi"
               >
                 <div className="reactions-summary-left">
                   <div className="reaction-emojis">
@@ -449,10 +462,10 @@ const Post = ({ post, currentUser }) => {
                     ))}
                   </div>
                   <span className="reactions-count">
-                    {getTotalReactions()}
+                    {getTotalReactions()} {getTotalReactions() > 1 ? 'réactions' : 'réaction'}
                   </span>
                 </div>
-              </div>
+              </button>
             </Tooltip>
           )}
           
@@ -471,6 +484,7 @@ const Post = ({ post, currentUser }) => {
                   onMouseLeave={handleMouseLeaveButton}
                   style={userReaction ? { color: reactionTypes[userReaction].color } : {}}
                   disabled={loading}
+                  aria-label={userReaction ? `Réaction actuelle: ${reactionTypes[userReaction].label}` : 'Ajouter une réaction'}
                 >
                   <span className="reaction-icon">
                     {loading ? '⏳' : userReaction ? reactionTypes[userReaction].emoji : '👍'}
@@ -517,6 +531,7 @@ const Post = ({ post, currentUser }) => {
                           e.target.style.transform = 'scale(1)';
                           e.target.style.backgroundColor = 'transparent';
                         }}
+                        aria-label={`Réagir avec ${config.label}`}
                       >
                         {config.emoji}
                       </button>
@@ -525,6 +540,22 @@ const Post = ({ post, currentUser }) => {
                 </div>
               )}
             </div>
+            
+            {/* Bouton de partage (futur) */}
+            <button className="action-button share-button" disabled>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+              </svg>
+              <span>Partager</span>
+            </button>
+            
+            {/* Bouton de commentaire (futur) */}
+            <button className="action-button comment-button" disabled>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              <span>Commenter</span>
+            </button>
           </div>
         </div>
         
@@ -532,7 +563,7 @@ const Post = ({ post, currentUser }) => {
         {showReactionDetails && getTotalReactions() > 0 && (
           <div className="reaction-details">
             <h4>
-              <span style={{ color: '#0a66c2' }}>
+              <span style={{ color: 'var(--primary-color)' }}>
                 {getTotalReactions()}
               </span>
               {' '}personne{getTotalReactions() > 1 ? 's ont' : ' a'} réagi à cette publication
@@ -554,7 +585,7 @@ const Post = ({ post, currentUser }) => {
                   <div className="reaction-users">
                     {reaction.users.slice(0, 5).join(', ')}
                     {reaction.users.length > 5 && (
-                      <span style={{ color: '#0a66c2', fontWeight: '500' }}>
+                      <span style={{ color: 'var(--primary-color)', fontWeight: '500' }}>
                         {' '}et {reaction.users.length - 5} autre{reaction.users.length - 5 > 1 ? 's' : ''}
                       </span>
                     )}
@@ -567,26 +598,11 @@ const Post = ({ post, currentUser }) => {
               textAlign: 'center', 
               marginTop: '12px', 
               paddingTop: '8px', 
-              borderTop: '1px solid #e9ecef' 
+              borderTop: '1px solid var(--border-light)' 
             }}>
               <button
                 onClick={() => setShowReactionDetails(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#0a66c2',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  transition: 'background-color 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = 'rgba(10, 102, 194, 0.1)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                }}
+                className="close-details-button"
               >
                 Masquer les détails
               </button>
@@ -597,11 +613,25 @@ const Post = ({ post, currentUser }) => {
         {/* Statut du post (pour les admins) */}
         {post.status && post.status !== 'approved' && (
           <div className={`post-status status-${post.status}`}>
-            {post.status === 'pending' ? 'En attente de modération' : 
-             post.status === 'rejected' ? 'Rejeté' : post.status}
+            <div className="status-indicator">
+              {post.status === 'pending' && (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              )}
+              {post.status === 'rejected' && (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              )}
+              <span>
+                {post.status === 'pending' ? 'En attente de modération' : 
+                 post.status === 'rejected' ? 'Rejeté' : post.status}
+              </span>
+            </div>
           </div>
         )}
-      </div>
+      </article>
 
       {showGallery && (
         <ImageGallery 
