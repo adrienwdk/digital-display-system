@@ -1,4 +1,4 @@
-// client/src/components/layout/Header.js - Version moderne
+// client/src/components/layout/Header.js - Version moderne sans header-status
 import React, { useState } from 'react';
 
 const Header = ({ onTabChange, onSearch }) => {
@@ -191,28 +191,6 @@ const Header = ({ onTabChange, onSearch }) => {
             )}
           </button>
         ))}
-      </div>
-      
-      {/* Indicateurs de statut */}
-      <div className="header-status">
-        {searchTerm && (
-          <div className="status-chip search-active">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <span>Recherche: "{searchTerm}"</span>
-            <button onClick={clearSearch} className="status-chip-close">
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        )}
-        
-        <div className="status-chip section-active">
-          <span className="status-dot"></span>
-          <span>Section: {tabs.find(t => t.id === activeTab)?.label}</span>
-        </div>
       </div>
     </div>
   );

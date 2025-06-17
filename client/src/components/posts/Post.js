@@ -1,4 +1,4 @@
-// client/src/components/posts/Post.js - Version complète moderne avec UX améliorée
+// client/src/components/posts/Post.js - Version sans partage et commentaires
 import React, { useState, useEffect } from 'react';
 import ImageGallery from './ImageGallery';
 import Avatar from '../ui/Avatar';
@@ -29,13 +29,13 @@ const Post = ({ post, currentUser }) => {
   // Hook pour les animations
   const { animateReaction, animateError } = useReactionAnimations();
 
-  // Configuration des types de réactions avec couleurs modernes
+  // Configuration des types de réactions avec couleurs terra-cotta
   const reactionTypes = {
-    like: { emoji: '👍', label: 'J\'aime', color: '#3b82f6' },
-    love: { emoji: '❤️', label: 'J\'adore', color: '#ef4444' },
-    bravo: { emoji: '👏', label: 'Bravo', color: '#f59e0b' },
-    interesting: { emoji: '🤔', label: 'Intéressant', color: '#8b5cf6' },
-    welcome: { emoji: '👋', label: 'Bienvenue', color: '#10b981' }
+    like: { emoji: '👍', label: 'J\'aime', color: '#d2691e' },
+    love: { emoji: '❤️', label: 'J\'adore', color: '#cd853f' },
+    bravo: { emoji: '👏', label: 'Bravo', color: '#ff8c00' },
+    interesting: { emoji: '🤔', label: 'Intéressant', color: '#8b6f47' },
+    welcome: { emoji: '👋', label: 'Bienvenue', color: '#228b22' }
   };
 
   // Initialiser les styles d'animation au montage
@@ -156,14 +156,14 @@ const Post = ({ post, currentUser }) => {
   // Obtenir la classe CSS pour l'indicateur de département
   const getDepartmentBadgeClass = (dept) => {
     const colors = {
-      marketing: '#10b981',
-      rh: '#3b82f6',
-      informatique: '#8b5cf6',
-      commerce: '#f59e0b',
-      achat: '#6366f1',
-      comptabilité: '#ef4444',
-      logistique: '#06b6d4',
-      general: '#6b7280'
+      marketing: '#cd853f',
+      rh: '#d2691e',
+      informatique: '#8b6f47',
+      commerce: '#ff8c00',
+      achat: '#d2691e',
+      comptabilité: '#bf5f1a',
+      logistique: '#228b22',
+      general: '#8d6e63'
     };
     return colors[dept] || colors.general;
   };
@@ -469,7 +469,7 @@ const Post = ({ post, currentUser }) => {
             </Tooltip>
           )}
           
-          {/* Boutons d'action */}
+          {/* Boutons d'action - UNIQUEMENT LES RÉACTIONS */}
           <div className="post-actions">
             <div className="reaction-button-container">
               <Tooltip
@@ -540,22 +540,6 @@ const Post = ({ post, currentUser }) => {
                 </div>
               )}
             </div>
-            
-            {/* Bouton de partage (futur) */}
-            <button className="action-button share-button" disabled>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-              </svg>
-              <span>Partager</span>
-            </button>
-            
-            {/* Bouton de commentaire (futur) */}
-            <button className="action-button comment-button" disabled>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              <span>Commenter</span>
-            </button>
           </div>
         </div>
         
@@ -597,8 +581,7 @@ const Post = ({ post, currentUser }) => {
             <div style={{ 
               textAlign: 'center', 
               marginTop: '12px', 
-              paddingTop: '8px', 
-              borderTop: '1px solid var(--border-light)' 
+              paddingTop: '8px'
             }}>
               <button
                 onClick={() => setShowReactionDetails(false)}
