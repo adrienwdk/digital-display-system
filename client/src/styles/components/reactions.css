@@ -1,0 +1,287 @@
+/* Réactions style LinkedIn - Affichage moderne */
+.post-reactions-section {
+  margin-top: 1rem;
+}
+
+.reactions-summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0.5rem 0;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  border-radius: var(--radius-md);
+  position: relative;
+  background: none;
+}
+
+.reactions-summary:hover {
+  background-color: var(--bg-tertiary);
+  padding: 0.5rem;
+}
+
+.reactions-summary-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reaction-emojis {
+  display: flex;
+  position: relative;
+  align-items: center;
+  margin-right: 0.5rem;
+}
+
+.reaction-emoji-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  margin-left: -4px;
+  border: 2px solid var(--bg-primary);
+  transition: all var(--transition-normal);
+  z-index: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.reaction-emoji-container:first-child {
+  margin-left: 0;
+  z-index: 5;
+}
+
+.reaction-emoji-container:nth-child(2) { z-index: 4; }
+.reaction-emoji-container:nth-child(3) { z-index: 3; }
+.reaction-emoji-container:nth-child(4) { z-index: 2; }
+.reaction-emoji-container:nth-child(5) { z-index: 1; }
+
+/* Couleurs exactes style LinkedIn/Facebook */
+.reaction-emoji-container.like {
+  background: linear-gradient(135deg, #378fe9 0%, #1877f2 100%);
+}
+
+.reaction-emoji-container.love {
+  background: linear-gradient(135deg, #f25268 0%, #ed213a 100%);
+}
+
+.reaction-emoji-container.bravo {
+  background: linear-gradient(135deg, #f0ca4d 0%, #e9b430 100%);
+}
+
+.reaction-emoji-container.interesting {
+  background: linear-gradient(135deg, #f0ca4d 0%, #e9b430 100%);
+}
+
+.reaction-emoji-container.welcome {
+  background: linear-gradient(135deg, #54c7ec 0%, #41b5d9 100%);
+}
+
+.reaction-emoji-container:hover {
+  transform: translateY(-2px) scale(1.1);
+  z-index: 10 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.reaction-emoji {
+  font-size: 11px;
+  line-height: 1;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* Emojis exacts */
+.reaction-emoji.like::before { content: "👍"; font-size: 10px; }
+.reaction-emoji.love::before { content: "❤️"; font-size: 10px; }
+.reaction-emoji.bravo::before { content: "👏"; font-size: 10px; }
+.reaction-emoji.interesting::before { content: "💡"; font-size: 10px; }
+.reaction-emoji.welcome::before { content: "👋"; font-size: 10px; }
+
+.reactions-count {
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  cursor: pointer;
+  line-height: 1;
+  transition: all var(--transition-fast);
+}
+
+.reactions-count:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+/* Boutons d'action - UNIQUEMENT LES RÉACTIONS */
+.post-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  margin-top: 0;
+}
+
+.reaction-button-container {
+  position: relative;
+  flex: 1;
+}
+
+.reaction-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  font-weight: 600;
+  position: relative;
+  border: 1px solid transparent;
+}
+
+.reaction-button:hover:not(:disabled) {
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+  transform: translateY(-1px);
+  border-color: var(--primary-color);
+}
+
+.reaction-button.has-reaction {
+  color: var(--primary-color);
+  background-color: var(--primary-light);
+}
+
+.reaction-button.has-reaction .reaction-icon {
+  transform: scale(1.1);
+}
+
+.reaction-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.reaction-icon {
+  font-size: 18px;
+  line-height: 1;
+  transition: all var(--transition-normal);
+}
+
+.reaction-text {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Picker de réactions moderne */
+.reaction-picker {
+  position: absolute;
+  bottom: calc(100% + 0.75rem);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  gap: 0.25rem;
+  z-index: 1000;
+  animation: reactionPickerSlideUp 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  backdrop-filter: blur(20px);
+}
+
+@keyframes reactionPickerSlideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.reaction-picker::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid var(--bg-primary);
+  filter: drop-shadow(0 1px 1px rgba(139, 111, 71, 0.1));
+}
+
+.reaction-option {
+  background: none;
+  border: none;
+  font-size: 28px;
+  padding: 0.75rem;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  line-height: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.reaction-option::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: var(--primary-light);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: all var(--transition-normal);
+}
+
+.reaction-option:hover {
+  transform: scale(1.2);
+}
+
+.reaction-option:hover::before {
+  width: 100%;
+  height: 100%;
+}
+
+.reaction-option:active {
+  transform: scale(1.1);
+}
+
+/* Animations personnalisées */
+@keyframes reactionPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.reaction-button.reacting .reaction-icon {
+  animation: reactionPop 0.6s ease-out;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.reaction-button.loading .reaction-icon {
+  animation: pulse 1.5s ease-in-out infinite;
+}

@@ -1,0 +1,120 @@
+/* Sidebar moderne avec glassmorphism */
+.sidebar {
+    width: 80px;
+    background: rgba(255, 254, 247, 0.95);
+    backdrop-filter: blur(20px);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1.5rem 0;
+    position: fixed;
+    height: 100vh;
+    left: 0;
+    top: 0;
+    z-index: 40;
+    transition: all var(--transition-normal);
+  }
+  
+  .sidebar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(180deg, rgba(255, 254, 247, 0.1) 0%, rgba(255, 254, 247, 0.05) 100%);
+    pointer-events: none;
+  }
+  
+  .logo {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+    border-radius: var(--radius-xl);
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-white);
+    font-weight: 700;
+    font-size: 1.25rem;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    z-index: 1;
+  }
+  
+  /* Avatar dans la sidebar - design moderne */
+  .sidebar-avatar {
+    margin-bottom: 2rem !important;
+    border-radius: var(--radius-xl) !important;
+    transition: all var(--transition-normal);
+    display: block !important;
+    opacity: 1 !important;
+    width: 48px !important;
+    height: 48px !important;
+    box-shadow: var(--shadow-lg);
+    border: 2px solid var(--bg-primary);
+    position: relative;
+    z-index: 1;
+  }
+  
+  .sidebar-avatar:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-xl);
+  }
+  
+  .sidebar-avatar > div {
+    width: 48px !important;
+    height: 48px !important;
+  }
+  
+  .sidebar-button {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-lg);
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    position: relative;
+    z-index: 1;
+  }
+  
+  .sidebar-button::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--primary-light);
+    border-radius: var(--radius-lg);
+    opacity: 0;
+    transition: all var(--transition-normal);
+    z-index: -1;
+  }
+  
+  .sidebar-button:hover::before {
+    opacity: 1;
+  }
+  
+  .sidebar-button:hover {
+    color: var(--primary-color);
+    transform: translateY(-1px);
+  }
+  
+  .sidebar-button svg {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .sidebar-button.active {
+    color: var(--primary-color);
+  }
+  
+  .sidebar-button.active::before {
+    opacity: 1;
+  }

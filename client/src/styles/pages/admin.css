@@ -1,0 +1,38 @@
+/* Styles pour le panel admin */
+
+/* Style pour les notifications de toast */
+.toast {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.5rem;
+    box-shadow: var(--shadow-xl);
+    z-index: 1100;
+    animation: slideInRight 0.3s ease-out;
+  }
+  
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  
+  .toast.success {
+    border-color: var(--success-color);
+  }
+  
+  .toast.error {
+    border-color: var(--error-color);
+  }
+  
+  .toast.warning {
+    border-color: var(--warning-color);
+  }

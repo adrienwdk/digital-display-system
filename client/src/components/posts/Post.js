@@ -1,4 +1,4 @@
-// client/src/components/posts/Post.js - Version sans partage et commentaires
+// client/src/components/posts/Post.js - Version avec modal de réactions
 import React, { useState, useEffect } from 'react';
 import ImageGallery from './ImageGallery';
 import Avatar from '../ui/Avatar';
@@ -11,6 +11,7 @@ const Post = ({ post, currentUser }) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [showReactionDetails, setShowReactionDetails] = useState(false);
+  const [activeReactionTab, setActiveReactionTab] = useState('all');
   const [pickerTimeout, setPickerTimeout] = useState(null);
   const [isExpanded, setIsExpanded] = useState(false);
   
@@ -334,6 +335,81 @@ const Post = ({ post, currentUser }) => {
     });
   };
 
+  // Fonction pour gérer le clic sur le résumé des réactions
+  const handleReactionsSummaryClick = () => {
+    setActiveReactionTab('all');
+    setShowReactionDetails(!showReactionDetails);
+  };
+
+  // Fonction pour rendre la liste des réactions dans le modal
+  const renderReactionsList = () => {
+    let usersToShow = [];
+    
+    if (activeReactionTab === 'all') {
+      // Rassembler tous les utilisateurs avec leurs réactions
+      Object.entries(reactions).forEach(([reactionType, reaction]) => {
+        reaction.users.forEach(user => {
+          usersToShow.push({
+            ...user,
+            reactionType: reactionType
+          });
+        });
+      });
+      // Trier par date de réaction (plus récent en premier)
+      usersToShow.sort((a, b) => new Date(b.reactedAt) - new Date(a.reactedAt));
+    } else {
+      // Afficher seulement les utilisateurs de la réaction sélectionnée
+      usersToShow = reactions[activeReactionTab]?.users || [];
+    }
+
+    if (usersToShow.length === 0) {
+      return (
+        <div className="reaction-empty-state">
+          <p>Aucune réaction pour le moment</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="reaction-users-list">
+        {usersToShow.map((user, index) => (
+          <div key={`${user.userId}-${index}`} className="reaction-user-item">
+            <div className="reaction-user-avatar-container">
+              <Avatar 
+                user={{
+                  firstName: user.userName?.split(' ')[0] || 'Utilisateur',
+                  lastName: user.userName?.split(' ').slice(1).join(' ') || '',
+                  avatar: null // Vous pouvez ajouter l'avatar si disponible
+                }} 
+                size="medium"
+                className="reaction-user-avatar"
+              />
+              {activeReactionTab === 'all' && (
+                <div className={`reaction-user-badge ${user.reactionType}`}>
+                  <span className={`reaction-emoji ${user.reactionType}`}></span>
+                </div>
+              )}
+            </div>
+            
+            <div className="reaction-user-info">
+              <div className="reaction-user-name">{user.userName}</div>
+              <div className="reaction-user-role">
+                {/* Vous pouvez ajouter le rôle ici si disponible dans les données */}
+                Employé
+              </div>
+            </div>
+            
+            {activeReactionTab !== 'all' && (
+              <div className={`reaction-user-reaction ${activeReactionTab}`}>
+                <span className={`reaction-emoji ${activeReactionTab}`}></span>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   // Fermer le picker de réactions si on clique ailleurs
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -439,7 +515,7 @@ const Post = ({ post, currentUser }) => {
             >
               <button 
                 className="reactions-summary"
-                onClick={() => setShowReactionDetails(!showReactionDetails)}
+                onClick={handleReactionsSummaryClick}
                 aria-label="Voir qui a réagi"
               >
                 <div className="reactions-summary-left">
@@ -447,17 +523,13 @@ const Post = ({ post, currentUser }) => {
                     {getTopReactions().map(([type, reaction], index) => (
                       <div 
                         key={type} 
-                        className="reaction-emoji-container"
+                        className={`reaction-emoji-container ${type}`}
                         style={{ 
                           zIndex: getTopReactions().length - index,
-                          backgroundColor: `${reactionTypes[type].color}15`,
-                          borderColor: `${reactionTypes[type].color}30`
                         }}
                         title={`${reaction.count} ${reactionTypes[type].label}`}
                       >
-                        <span className="reaction-emoji">
-                          {reactionTypes[type].emoji}
-                        </span>
+                        <span className={`reaction-emoji ${type}`}></span>
                       </div>
                     ))}
                   </div>
@@ -543,56 +615,6 @@ const Post = ({ post, currentUser }) => {
           </div>
         </div>
         
-        {/* Détails des réactions avec style amélioré */}
-        {showReactionDetails && getTotalReactions() > 0 && (
-          <div className="reaction-details">
-            <h4>
-              <span style={{ color: 'var(--primary-color)' }}>
-                {getTotalReactions()}
-              </span>
-              {' '}personne{getTotalReactions() > 1 ? 's ont' : ' a'} réagi à cette publication
-            </h4>
-            {Object.entries(reactions)
-              .filter(([_, reaction]) => reaction.count > 0)
-              .sort(([_, a], [__, b]) => b.count - a.count)
-              .map(([type, reaction]) => (
-                <div key={type} className="reaction-detail-item">
-                  <div className="reaction-type">
-                    <span style={{ fontSize: '16px' }}>{reactionTypes[type].emoji}</span>
-                    <span style={{ color: reactionTypes[type].color }}>
-                      {reactionTypes[type].label}
-                    </span>
-                  </div>
-                  <span className="reaction-count">
-                    {reaction.count}
-                  </span>
-                  <div className="reaction-users">
-                    {reaction.users.slice(0, 5).join(', ')}
-                    {reaction.users.length > 5 && (
-                      <span style={{ color: 'var(--primary-color)', fontWeight: '500' }}>
-                        {' '}et {reaction.users.length - 5} autre{reaction.users.length - 5 > 1 ? 's' : ''}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            
-            {/* Bouton pour fermer */}
-            <div style={{ 
-              textAlign: 'center', 
-              marginTop: '12px', 
-              paddingTop: '8px'
-            }}>
-              <button
-                onClick={() => setShowReactionDetails(false)}
-                className="close-details-button"
-              >
-                Masquer les détails
-              </button>
-            </div>
-          </div>
-        )}
-        
         {/* Statut du post (pour les admins) */}
         {post.status && post.status !== 'approved' && (
           <div className={`post-status status-${post.status}`}>
@@ -615,6 +637,55 @@ const Post = ({ post, currentUser }) => {
           </div>
         )}
       </article>
+
+      {/* Modal des réactions détaillées */}
+      {showReactionDetails && getTotalReactions() > 0 && (
+        <>
+          <div className="reaction-details-overlay" onClick={() => setShowReactionDetails(false)} />
+          <div className="reaction-details-modal">
+            <div className="reaction-details-header">
+              <h3 className="reaction-details-title">Réactions</h3>
+              <button 
+                className="reaction-details-close" 
+                onClick={() => setShowReactionDetails(false)}
+                aria-label="Fermer"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="reaction-details-tabs">
+              <button 
+                className={`reaction-details-tab ${activeReactionTab === 'all' ? 'active' : ''}`}
+                onClick={() => setActiveReactionTab('all')}
+              >
+                <span className="tab-label">Tout</span>
+                <span className="tab-count">{getTotalReactions()}</span>
+              </button>
+              
+              {Object.entries(reactions)
+                .filter(([_, reaction]) => reaction.count > 0)
+                .sort(([_, a], [__, b]) => b.count - a.count)
+                .map(([type, reaction]) => (
+                  <button
+                    key={type}
+                    className={`reaction-details-tab ${activeReactionTab === type ? 'active' : ''}`}
+                    onClick={() => setActiveReactionTab(type)}
+                  >
+                    <div className={`reaction-details-tab-emoji ${type}`}>
+                      <span className={`reaction-emoji ${type}`}></span>
+                    </div>
+                    <span className="tab-count">{reaction.count}</span>
+                  </button>
+                ))}
+            </div>
+            
+            <div className="reaction-details-content">
+              {renderReactionsList()}
+            </div>
+          </div>
+        </>
+      )}
 
       {showGallery && (
         <ImageGallery 

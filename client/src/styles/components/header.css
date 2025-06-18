@@ -1,0 +1,186 @@
+/* Barre de recherche moderne avec indicateurs */
+.search-container {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+  
+  .search-input {
+    width: 100%;
+    padding: 1rem 1rem 1rem 3rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    background: var(--bg-primary);
+    box-shadow: var(--shadow-sm);
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    transition: all var(--transition-normal);
+  }
+  
+  .search-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--primary-light), var(--shadow-md);
+    transform: translateY(-1px);
+  }
+  
+  .search-input::placeholder {
+    color: var(--text-muted);
+  }
+  
+  .search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+    transition: color var(--transition-fast);
+  }
+  
+  .search-input:focus + .search-icon {
+    color: var(--primary-color);
+  }
+  
+  .search-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .clear-search {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 0.25rem;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+  }
+  
+  .clear-search:hover {
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+  }
+  
+  .search-indicator {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 0;
+    right: 0;
+    background: var(--primary-light);
+    border: 1px solid var(--primary-color);
+    border-radius: var(--radius-md);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    color: var(--primary-color);
+    font-weight: 600;
+    text-align: center;
+    animation: fadeInUp 0.2s ease-out;
+  }
+  
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Onglets modernes avec icônes */
+  .tabs {
+    display: flex;
+    gap: 0.25rem;
+    overflow-x: auto;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0.5rem;
+    background: var(--bg-primary);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .tab {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-lg);
+    border: none;
+    background: transparent;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    white-space: nowrap;
+    color: var(--text-secondary);
+    position: relative;
+    min-width: max-content;
+  }
+  
+  .tab-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    transition: all var(--transition-normal);
+  }
+  
+  .tab-label {
+    font-weight: 600;
+  }
+  
+  .tab-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    background: var(--warning-color);
+    color: var(--text-white);
+    border-radius: 50%;
+    font-size: 0.625rem;
+    margin-left: 0.25rem;
+  }
+  
+  .tab:hover {
+    color: var(--primary-color);
+    background: var(--primary-light);
+    transform: translateY(-1px);
+  }
+  
+  .tab:hover .tab-icon {
+    transform: scale(1.1);
+  }
+  
+  .tab.active {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+    color: var(--text-white);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+  
+  .tab.active .tab-badge {
+    background: rgba(255, 255, 255, 0.3);
+    color: var(--text-white);
+  }
+  
+  .tab.empty-tab:not(.active) {
+    background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+    border: 1px dashed var(--border-color);
+  }

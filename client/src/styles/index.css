@@ -1,0 +1,26 @@
+/* Point d'entrée CSS principal - Importe tous les modules */
+
+/* 1. Base - Variables, reset, typographie */
+@import './base/reset.css';
+@import './base/utilities.css';
+
+/* 2. Layout - Structure générale */
+@import './layout/app-layout.css';
+@import './layout/responsive.css';
+
+/* 3. Composants - Interface utilisateur */
+@import './components/sidebar.css';
+@import './components/header.css';
+@import './components/posts.css';
+@import './components/reactions.css';
+@import './components/reaction-modal.css';
+@import './components/modals.css';
+@import './components/forms.css';
+@import './components/buttons.css';
+@import './components/avatars.css';
+@import './components/empty-states.css';
+
+/* 4. Pages spécifiques */
+@import './pages/feed.css';
+@import './pages/admin.css';
+@import './pages/auth.css';

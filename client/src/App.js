@@ -1,7 +1,7 @@
 // client/src/App.js - Version complète corrigée pour le filtrage par service
 import React, { useState, useEffect, Suspense } from 'react';
 import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
-import './App.css';
+import './styles/index.css';
 import Header from './components/layout/Header';
 import Avatar from './components/ui/Avatar';
 import EmptyState from './components/ui/EmptyState';

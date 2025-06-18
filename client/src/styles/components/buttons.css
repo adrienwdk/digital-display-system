@@ -1,0 +1,170 @@
+/* Boutons d'authentification modernes */
+.auth-buttons {
+    display: flex;
+    gap: 0.75rem;
+  }
+  
+  .login-button, .register-button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: var(--radius-lg);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .login-button {
+    background: var(--bg-primary);
+    color: var(--primary-color);
+    border: 1px solid var(--border-color);
+  }
+  
+  .login-button:hover {
+    background: var(--primary-light);
+    border-color: var(--primary-color);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+  }
+  
+  .register-button {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+    color: var(--text-white);
+    box-shadow: var(--shadow-md);
+  }
+  
+  .register-button:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  /* Menu utilisateur moderne */
+  .user-menu {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: rgba(255, 254, 247, 0.95);
+    backdrop-filter: blur(20px);
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .user-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  
+  .admin-badge, .oauth-badge {
+    margin-left: 0.5rem !important;
+    padding: 0.25rem 0.5rem !important;
+    border-radius: var(--radius-sm) !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+  }
+  
+  .logout-button {
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all var(--transition-normal);
+  }
+  
+  .logout-button:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--text-secondary);
+    color: var(--text-primary);
+  }
+  
+  /* Boutons modernes */
+  .auth-submit-button,
+  .publish-button {
+    width: 100%;
+    padding: 0.875rem 1.5rem;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+    color: var(--text-white);
+    border: none;
+    border-radius: var(--radius-lg);
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.875rem;
+    margin-top: 1rem;
+    transition: all var(--transition-normal);
+    box-shadow: var(--shadow-md);
+  }
+  
+  .auth-submit-button:hover,
+  .publish-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .publish-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+  
+  .auth-toggle {
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+  }
+  
+  .auth-toggle button {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 0.25rem;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+  }
+  
+  .auth-toggle button:hover {
+    background: var(--primary-light);
+  }
+  
+  /* Boutons d'action génériques */
+  .action-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: none;
+    border: none;
+    border-radius: var(--radius-lg);
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    font-weight: 500;
+    min-width: max-content;
+  }
+  
+  .action-button:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+  
+  .action-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  .action-button svg {
+    width: 16px;
+    height: 16px;
+  }
