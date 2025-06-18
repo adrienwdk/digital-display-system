@@ -63,26 +63,38 @@
   background-color: white;
   border-radius: 6px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  padding: 15px;
+  padding: 20px;
   margin-bottom: 20px;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 15px;
 }
 
 .author-info {
   display: flex;
   flex-direction: column;
+  gap: 4px;
 }
 
 .role {
   font-size: 12px;
   color: #6c757d;
   margin-top: 2px;
+}
+
+.service-badge {
+  font-size: 11px;
+  background-color: #e9ecef;
+  color: #495057;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  width: fit-content;
 }
 
 .date {
@@ -99,6 +111,67 @@
   line-height: 1.5;
 }
 
+/* Edit Form Styles */
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.edit-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.edit-select {
+  width: 200px;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.save-button {
+  padding: 8px 16px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.save-button:hover {
+  background-color: #218838;
+}
+
+.cancel-button {
+  padding: 8px 16px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.cancel-button:hover {
+  background-color: #5a6268;
+}
+
+/* Image Preview */
 .image-preview {
   display: flex;
   flex-wrap: wrap;
@@ -106,16 +179,78 @@
   margin-top: 10px;
 }
 
-.image-preview img {
+.thumbnail-image {
   width: 120px;
   height: 120px;
   object-fit: cover;
   border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.2s;
 }
 
+.thumbnail-image:hover {
+  transform: scale(1.05);
+}
+
+/* File List */
+.file-list {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.file-list h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: #495057;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 13px;
+}
+
+.file-icon {
+  font-size: 16px;
+}
+
+.file-name {
+  color: #212529;
+}
+
+.file-type {
+  color: #6c757d;
+  font-size: 12px;
+}
+
+/* Card Actions */
 .card-actions {
   display: flex;
   gap: 10px;
+}
+
+.edit-button {
+  padding: 8px 16px;
+  background-color: #17a2b8;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.edit-button:hover {
+  background-color: #138496;
+}
+
+.edit-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
 }
 
 .approve-button, .promote-button {
@@ -133,6 +268,11 @@
   background-color: #218838;
 }
 
+.approve-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
 .reject-button, .demote-button {
   padding: 8px 16px;
   background-color: #dc3545;
@@ -148,9 +288,315 @@
   background-color: #c82333;
 }
 
-.error-message {
+.reject-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+/* Image Modal */
+.image-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  cursor: pointer;
+}
+
+.image-modal-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  cursor: default;
+}
+
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 30px;
+  cursor: pointer;
+  color: #333;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.modal-close:hover {
+  background-color: #f0f0f0;
+}
+
+.image-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  justify-content: center;
+}
+
+.modal-image {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Users Table */
+.users-table {
+  width: 100%;
+  background-color: white;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.users-table th,
+.users-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e1e4e8;
+}
+
+.users-table th {
+  background-color: #f6f8fa;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.users-table tr:last-child td {
+  border-bottom: none;
+}
+
+.users-table tr:hover {
+  background-color: #f6f8fa;
+}
+
+.admin-badge {
+  margin-left: 8px;
+  padding: 2px 6px;
+  background-color: #ff5c39;
+  color: white;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.oauth-badge {
+  margin-left: 8px;
+  padding: 2px 6px;
+  background-color: #0078d4;
+  color: white;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+/* Stats Container */
+.stats-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.stat-card {
+  background-color: white;
+  border-radius: 6px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card h3 {
+  margin: 0 0 15px 0;
+  color: #2c3e50;
+  font-size: 18px;
+}
+
+.stat-value {
+  font-size: 36px;
+  font-weight: bold;
+  color: #3498db;
+  margin-bottom: 15px;
+}
+
+.stat-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.stat-item .label {
+  color: #6c757d;
+}
+
+.stat-item .value {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+/* Filtres pour les posts */
+.posts-filters {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filter-select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+  cursor: pointer;
+}
+
+.filter-search {
+  flex: 1;
+  min-width: 200px;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+/* Status badges */
+.status-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-left: 8px;
+}
+
+.status-pending {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.status-approved {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status-rejected {
   background-color: #f8d7da;
   color: #721c24;
-  padding: 10px 15px;
+}
+
+/* Post meta */
+.post-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.modified-info {
+  font-size: 12px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Delete button */
+.delete-button {
+  padding: 8px 16px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
   border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.delete-button:hover {
+  background-color: #5a6268;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-top: 30px;
+  padding: 20px;
+}
+
+.pagination button {
+  padding: 8px 16px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.pagination button:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.pagination button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.pagination span {
+  font-size: 14px;
+  color: #495057;
+  font-weight: 500;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .posts-filters {
+    flex-direction: column;
+  }
+  
+  .filter-select,
+  .filter-search {
+    width: 100%;
+  }
+  
+  .card-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .card-actions {
+    flex-wrap: wrap;
+  }
+  
+  .thumbnail-image {
+    width: 80px;
+    height: 80px;
+  }
+  
+  .modal-image {
+    max-height: 50vh;
+  }
 }

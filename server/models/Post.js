@@ -32,6 +32,42 @@ const PostSchema = new mongoose.Schema({
     default: 'general',
     required: true
   },
+  // Historique des modifications
+  lastModified: {
+    by: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    at: {
+      type: Date
+    },
+    reason: {
+      type: String
+    }
+  },
+  
+  // Historique complet des modifications
+  modificationHistory: [{
+    modifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    modifiedAt: {
+      type: Date,
+      default: Date.now
+    },
+    changes: {
+      content: {
+        old: String,
+        new: String
+      },
+      service: {
+        old: String,
+        new: String
+      }
+    },
+    reason: String
+  }],
   // Système de réactions complet
   reactions: {
     like: {
@@ -210,6 +246,25 @@ PostSchema.statics.getValidServices = function() {
 // Méthode statique pour valider un service
 PostSchema.statics.isValidService = function(service) {
   return this.getValidServices().includes(service);
+};
+
+PostSchema.methods.trackModification = function(userId, changes, reason = 'Modification administrative') {
+  // Ajouter à l'historique
+  this.modificationHistory.push({
+    modifiedBy: userId,
+    modifiedAt: new Date(),
+    changes: changes,
+    reason: reason
+  });
+  
+  // Mettre à jour lastModified
+  this.lastModified = {
+    by: userId,
+    at: new Date(),
+    reason: reason
+  };
+  
+  return this;
 };
 
 module.exports = mongoose.model('Post', PostSchema);

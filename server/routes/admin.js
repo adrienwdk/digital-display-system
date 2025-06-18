@@ -112,4 +112,107 @@ router.get('/stats', auth, admin, async (req, res) => {
   }
 });
 
+router.get('/posts', auth, admin, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const status = req.query.status; // 'all', 'pending', 'approved', 'rejected'
+    const service = req.query.service;
+    const search = req.query.search;
+    
+    // Construire le filtre
+    let filter = {};
+    
+    if (status && status !== 'all') {
+      filter.status = status;
+    }
+    
+    if (service && service !== 'all') {
+      filter.service = service;
+    }
+    
+    if (search) {
+      filter.$or = [
+        { content: { $regex: search, $options: 'i' } },
+        { author: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    // Compter le total
+    const total = await Post.countDocuments(filter);
+    
+    // Récupérer les posts avec pagination
+    const posts = await Post.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .skip((page - 1) * limit)
+      .populate('userId', 'firstName lastName email avatar')
+      .populate('approvedBy', 'firstName lastName')
+      .populate('lastModified.by', 'firstName lastName');
+    
+    // Formater les posts
+    const formattedPosts = posts.map(post => {
+      const formatted = {
+        ...post.toObject(),
+        reactions: post.getFormattedReactions(),
+        totalReactions: post.getTotalReactions()
+      };
+      
+      // Ajouter l'avatar de l'utilisateur si disponible
+      if (post.userId && post.userId.avatar) {
+        formatted.authorAvatar = post.userId.avatar;
+      }
+      
+      return formatted;
+    });
+    
+    res.json({
+      posts: formattedPosts,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+    
+  } catch (err) {
+    console.error("Erreur lors de la récupération des posts:", err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
+// Route pour supprimer définitivement un post (admin seulement)
+router.delete('/posts/:id', auth, admin, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    
+    if (!post) {
+      return res.status(404).json({ message: "Post non trouvé" });
+    }
+    
+    // Supprimer les fichiers associés
+    if (post.files && post.files.length > 0) {
+      const path = require('path');
+      const fs = require('fs');
+      
+      post.files.forEach(file => {
+        const filePath = path.join(__dirname, '../..', file.path.substring(1));
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log(`Fichier supprimé: ${filePath}`);
+        }
+      });
+    }
+    
+    await post.deleteOne();
+    
+    res.json({ message: "Post supprimé définitivement" });
+    
+  } catch (err) {
+    console.error("Erreur lors de la suppression du post:", err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
 module.exports = router;

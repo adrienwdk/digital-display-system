@@ -5,10 +5,23 @@ import './AdminPanel.css';
 const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState('pending');
   const [pendingPosts, setPendingPosts] = useState([]);
+  const [allPosts, setAllPosts] = useState([]);
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [editingPost, setEditingPost] = useState(null);
+  const [editForm, setEditForm] = useState({ content: '', service: '' });
+  const [imageModal, setImageModal] = useState(null);
+  
+  // États pour la gestion de tous les posts
+  const [postsFilter, setPostsFilter] = useState({
+    status: 'all',
+    service: 'all',
+    search: '',
+    page: 1
+  });
+  const [postsPagination, setPostsPagination] = useState(null);
 
   // Charger les données en fonction de l'onglet actif
   useEffect(() => {
@@ -18,6 +31,17 @@ const AdminPanel = () => {
         if (activeTab === 'pending') {
           const res = await api.get('/posts/pending');
           setPendingPosts(res.data);
+        } else if (activeTab === 'allPosts') {
+          const params = new URLSearchParams({
+            page: postsFilter.page,
+            limit: 20,
+            status: postsFilter.status,
+            service: postsFilter.service,
+            search: postsFilter.search
+          });
+          const res = await api.get(`/admin/posts?${params}`);
+          setAllPosts(res.data.posts);
+          setPostsPagination(res.data.pagination);
         } else if (activeTab === 'users') {
           const res = await api.get('/admin/users');
           setUsers(res.data);
@@ -35,14 +59,12 @@ const AdminPanel = () => {
     };
 
     loadData();
-  }, [activeTab]);
+  }, [activeTab, postsFilter]);
 
   // Fonction pour approuver un post
   const handleApprovePost = async (postId) => {
     try {
-      // Suppression de l'assignation de la variable res non utilisée
       await api.put(`/posts/${postId}/approve`);
-      // Retirer le post de la liste des posts en attente
       setPendingPosts(pendingPosts.filter(post => post._id !== postId));
     } catch (err) {
       console.error("Erreur lors de l'approbation du post:", err);
@@ -52,10 +74,9 @@ const AdminPanel = () => {
 
   // Fonction pour rejeter un post
   const handleRejectPost = async (postId) => {
+    const reason = prompt("Raison du rejet (optionnel) :");
     try {
-      // Suppression de l'assignation de la variable res non utilisée
-      await api.put(`/posts/${postId}/reject`);
-      // Retirer le post de la liste des posts en attente
+      await api.put(`/posts/${postId}/reject`, { rejectionReason: reason || "Non conforme aux règles" });
       setPendingPosts(pendingPosts.filter(post => post._id !== postId));
     } catch (err) {
       console.error("Erreur lors du rejet du post:", err);
@@ -63,13 +84,92 @@ const AdminPanel = () => {
     }
   };
 
-  // Fonction pour promouvoir un utilisateur au rang d'administrateur
+  // Fonction pour commencer l'édition d'un post
+  const handleEditPost = (post) => {
+    setEditingPost(post._id);
+    setEditForm({
+      content: post.content,
+      service: post.service
+    });
+  };
+
+  // Fonction pour sauvegarder les modifications
+  const handleSaveEdit = async (postId) => {
+    try {
+      await api.put(`/posts/${postId}/edit`, editForm);
+      
+      // Mettre à jour le post dans la liste locale
+      setPendingPosts(pendingPosts.map(post => 
+        post._id === postId 
+          ? { ...post, content: editForm.content, service: editForm.service }
+          : post
+      ));
+      
+      setEditingPost(null);
+      setEditForm({ content: '', service: '' });
+    } catch (err) {
+      console.error("Erreur lors de la modification du post:", err);
+      setError("Erreur lors de la modification du post");
+    }
+  };
+
+  // Fonction pour annuler l'édition
+  const handleCancelEdit = () => {
+    setEditingPost(null);
+    setEditForm({ content: '', service: '' });
+  };
+
+  // Fonction pour ouvrir le modal d'image
+  const handleImageClick = (images) => {
+    setImageModal(images);
+  };
+
+  // Fonction pour supprimer définitivement un post
+  const handleDeletePost = async (postId) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer définitivement ce post ?')) {
+      return;
+    }
+    
+    try {
+      await api.delete(`/admin/posts/${postId}`);
+      
+      // Retirer le post de la liste
+      if (activeTab === 'pending') {
+        setPendingPosts(pendingPosts.filter(post => post._id !== postId));
+      } else if (activeTab === 'allPosts') {
+        setAllPosts(allPosts.filter(post => post._id !== postId));
+      }
+      
+    } catch (err) {
+      console.error("Erreur lors de la suppression du post:", err);
+      setError("Erreur lors de la suppression du post");
+    }
+  };
+
+  // Fonction pour changer le statut d'un post
+  const handleChangeStatus = async (postId, newStatus) => {
+    try {
+      if (newStatus === 'approved') {
+        await api.put(`/posts/${postId}/approve`);
+      } else if (newStatus === 'rejected') {
+        const reason = prompt("Raison du rejet :");
+        await api.put(`/posts/${postId}/reject`, { rejectionReason: reason });
+      }
+      
+      // Recharger les données
+      if (activeTab === 'allPosts') {
+        setPostsFilter({ ...postsFilter, page: 1 });
+      }
+      
+    } catch (err) {
+      console.error("Erreur lors du changement de statut:", err);
+      setError("Erreur lors du changement de statut");
+    }
+  };
   const handlePromoteUser = async (userId) => {
     try {
-      // Utilisation de la réponse pour confirmer la modification
       const response = await api.put(`/admin/users/${userId}/promote`);
       console.log("Promotion réussie:", response.data);
-      // Mettre à jour l'utilisateur dans la liste
       setUsers(users.map(user => 
         user._id === userId ? { ...user, isAdmin: true } : user
       ));
@@ -82,10 +182,8 @@ const AdminPanel = () => {
   // Fonction pour rétrograder un administrateur
   const handleDemoteUser = async (userId) => {
     try {
-      // Utilisation de la réponse pour confirmer la modification
       const response = await api.put(`/admin/users/${userId}/demote`);
       console.log("Rétrogradation réussie:", response.data);
-      // Mettre à jour l'utilisateur dans la liste
       setUsers(users.map(user => 
         user._id === userId ? { ...user, isAdmin: false } : user
       ));
@@ -107,6 +205,14 @@ const AdminPanel = () => {
     });
   };
 
+  // Fonction pour obtenir l'URL complète de l'image
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return '';
+    if (imagePath.startsWith('http')) return imagePath;
+    const path = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+    return `http://localhost:5000${path}`;
+  };
+
   // Rendu des posts en attente
   const renderPendingPosts = () => {
     if (pendingPosts.length === 0) {
@@ -119,36 +225,102 @@ const AdminPanel = () => {
           <div className="author-info">
             <strong>{post.author}</strong>
             <span className="role">{post.role}</span>
+            <span className="service-badge">{post.service}</span>
           </div>
           <span className="date">{formatDate(post.createdAt)}</span>
         </div>
         
         <div className="card-content">
-          <p>{post.content}</p>
-          
-          {post.images && post.images.length > 0 && (
-            <div className="image-preview">
-              {post.images.map((image, index) => (
-                <img 
-                  key={index} 
-                  src={`http://localhost:5000${image}`} 
-                  alt={`Contenu attaché ${index}`} 
-                />
-              ))}
+          {editingPost === post._id ? (
+            <div className="edit-form">
+              <textarea
+                value={editForm.content}
+                onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                className="edit-textarea"
+                rows="4"
+              />
+              <select
+                value={editForm.service}
+                onChange={(e) => setEditForm({ ...editForm, service: e.target.value })}
+                className="edit-select"
+              >
+                <option value="general">Général</option>
+                <option value="rh">RH</option>
+                <option value="commerce">Commerce</option>
+                <option value="marketing">Marketing</option>
+                <option value="informatique">Informatique</option>
+                <option value="achat">Achat</option>
+                <option value="comptabilité">Comptabilité</option>
+                <option value="logistique">Logistique</option>
+              </select>
+              <div className="edit-actions">
+                <button 
+                  className="save-button"
+                  onClick={() => handleSaveEdit(post._id)}
+                >
+                  Sauvegarder
+                </button>
+                <button 
+                  className="cancel-button"
+                  onClick={handleCancelEdit}
+                >
+                  Annuler
+                </button>
+              </div>
             </div>
+          ) : (
+            <>
+              <p>{post.content}</p>
+              
+              {post.images && post.images.length > 0 && (
+                <div className="image-preview">
+                  {post.images.map((image, index) => (
+                    <img 
+                      key={index} 
+                      src={getImageUrl(image)} 
+                      alt={`Contenu attaché ${index + 1}`}
+                      onClick={() => handleImageClick(post.images)}
+                      className="thumbnail-image"
+                    />
+                  ))}
+                </div>
+              )}
+              
+              {post.files && post.files.length > 0 && (
+                <div className="file-list">
+                  <h4>Fichiers attachés :</h4>
+                  {post.files.map((file, index) => (
+                    <div key={index} className="file-item">
+                      <span className="file-icon">📎</span>
+                      <span className="file-name">{file.originalName}</span>
+                      <span className="file-type">({file.fileType})</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
         
         <div className="card-actions">
           <button 
+            className="edit-button"
+            onClick={() => handleEditPost(post)}
+            disabled={editingPost === post._id}
+          >
+            Modifier
+          </button>
+          <button 
             className="approve-button"
             onClick={() => handleApprovePost(post._id)}
+            disabled={editingPost === post._id}
           >
             Approuver
           </button>
           <button 
             className="reject-button"
             onClick={() => handleRejectPost(post._id)}
+            disabled={editingPost === post._id}
           >
             Rejeter
           </button>
@@ -157,7 +329,200 @@ const AdminPanel = () => {
     ));
   };
 
-  // Rendu de la liste des utilisateurs
+  // Rendu de tous les posts avec filtres
+  const renderAllPosts = () => {
+    return (
+      <div className="all-posts-section">
+        {/* Filtres */}
+        <div className="posts-filters">
+          <select
+            value={postsFilter.status}
+            onChange={(e) => setPostsFilter({ ...postsFilter, status: e.target.value, page: 1 })}
+            className="filter-select"
+          >
+            <option value="all">Tous les statuts</option>
+            <option value="pending">En attente</option>
+            <option value="approved">Approuvés</option>
+            <option value="rejected">Rejetés</option>
+          </select>
+          
+          <select
+            value={postsFilter.service}
+            onChange={(e) => setPostsFilter({ ...postsFilter, service: e.target.value, page: 1 })}
+            className="filter-select"
+          >
+            <option value="all">Tous les services</option>
+            <option value="general">Général</option>
+            <option value="rh">RH</option>
+            <option value="commerce">Commerce</option>
+            <option value="marketing">Marketing</option>
+            <option value="informatique">Informatique</option>
+            <option value="achat">Achat</option>
+            <option value="comptabilité">Comptabilité</option>
+            <option value="logistique">Logistique</option>
+          </select>
+          
+          <input
+            type="text"
+            placeholder="Rechercher..."
+            value={postsFilter.search}
+            onChange={(e) => setPostsFilter({ ...postsFilter, search: e.target.value, page: 1 })}
+            className="filter-search"
+          />
+        </div>
+        
+        {/* Liste des posts */}
+        {allPosts.length === 0 ? (
+          <p className="no-items">Aucun post trouvé avec ces critères.</p>
+        ) : (
+          allPosts.map(post => (
+            <div className="admin-card" key={post._id}>
+              <div className="card-header">
+                <div className="author-info">
+                  <strong>{post.author}</strong>
+                  <span className="role">{post.role}</span>
+                  <span className="service-badge">{post.service}</span>
+                  <span className={`status-badge status-${post.status}`}>
+                    {post.status === 'pending' ? 'En attente' : 
+                     post.status === 'approved' ? 'Approuvé' : 'Rejeté'}
+                  </span>
+                </div>
+                <div className="post-meta">
+                  <span className="date">{formatDate(post.createdAt)}</span>
+                  {post.lastModified && (
+                    <span className="modified-info">
+                      Modifié le {formatDate(post.lastModified.at)}
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              <div className="card-content">
+                {editingPost === post._id ? (
+                  <div className="edit-form">
+                    <textarea
+                      value={editForm.content}
+                      onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                      className="edit-textarea"
+                      rows="4"
+                    />
+                    <select
+                      value={editForm.service}
+                      onChange={(e) => setEditForm({ ...editForm, service: e.target.value })}
+                      className="edit-select"
+                    >
+                      <option value="general">Général</option>
+                      <option value="rh">RH</option>
+                      <option value="commerce">Commerce</option>
+                      <option value="marketing">Marketing</option>
+                      <option value="informatique">Informatique</option>
+                      <option value="achat">Achat</option>
+                      <option value="comptabilité">Comptabilité</option>
+                      <option value="logistique">Logistique</option>
+                    </select>
+                    <div className="edit-actions">
+                      <button 
+                        className="save-button"
+                        onClick={() => handleSaveEdit(post._id)}
+                      >
+                        Sauvegarder
+                      </button>
+                      <button 
+                        className="cancel-button"
+                        onClick={handleCancelEdit}
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <p>{post.content}</p>
+                    
+                    {post.images && post.images.length > 0 && (
+                      <div className="image-preview">
+                        {post.images.map((image, index) => (
+                          <img 
+                            key={index} 
+                            src={getImageUrl(image)} 
+                            alt={`Contenu attaché ${index + 1}`}
+                            onClick={() => handleImageClick(post.images)}
+                            className="thumbnail-image"
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+              
+              <div className="card-actions">
+                <button 
+                  className="edit-button"
+                  onClick={() => handleEditPost(post)}
+                  disabled={editingPost === post._id}
+                >
+                  Modifier
+                </button>
+                
+                {post.status === 'pending' && (
+                  <>
+                    <button 
+                      className="approve-button"
+                      onClick={() => handleChangeStatus(post._id, 'approved')}
+                    >
+                      Approuver
+                    </button>
+                    <button 
+                      className="reject-button"
+                      onClick={() => handleChangeStatus(post._id, 'rejected')}
+                    >
+                      Rejeter
+                    </button>
+                  </>
+                )}
+                
+                {post.status === 'rejected' && (
+                  <button 
+                    className="approve-button"
+                    onClick={() => handleChangeStatus(post._id, 'approved')}
+                  >
+                    Approuver
+                  </button>
+                )}
+                
+                <button 
+                  className="delete-button"
+                  onClick={() => handleDeletePost(post._id)}
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+        
+        {/* Pagination */}
+        {postsPagination && postsPagination.pages > 1 && (
+          <div className="pagination">
+            <button
+              disabled={postsPagination.page === 1}
+              onClick={() => setPostsFilter({ ...postsFilter, page: postsPagination.page - 1 })}
+            >
+              Précédent
+            </button>
+            <span>Page {postsPagination.page} sur {postsPagination.pages}</span>
+            <button
+              disabled={postsPagination.page === postsPagination.pages}
+              onClick={() => setPostsFilter({ ...postsFilter, page: postsPagination.page + 1 })}
+            >
+              Suivant
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
   const renderUsers = () => {
     if (users.length === 0) {
       return <p className="no-items">Aucun utilisateur trouvé.</p>;
@@ -170,6 +535,7 @@ const AdminPanel = () => {
             <th>Nom</th>
             <th>Email</th>
             <th>Rôle</th>
+            <th>Service</th>
             <th>Date d'inscription</th>
             <th>Actions</th>
           </tr>
@@ -182,7 +548,9 @@ const AdminPanel = () => {
               <td>
                 {user.role}
                 {user.isAdmin && <span className="admin-badge">Admin</span>}
+                {user.isOAuthUser && <span className="oauth-badge">OAuth</span>}
               </td>
+              <td>{user.service || 'N/A'}</td>
               <td>{formatDate(user.createdAt)}</td>
               <td>
                 {user.isAdmin ? (
@@ -243,6 +611,29 @@ const AdminPanel = () => {
     );
   };
 
+  // Modal pour afficher les images en grand
+  const renderImageModal = () => {
+    if (!imageModal) return null;
+
+    return (
+      <div className="image-modal-overlay" onClick={() => setImageModal(null)}>
+        <div className="image-modal-content">
+          <button className="modal-close" onClick={() => setImageModal(null)}>×</button>
+          <div className="image-gallery">
+            {imageModal.map((image, index) => (
+              <img 
+                key={index}
+                src={getImageUrl(image)} 
+                alt={`Image ${index + 1}`}
+                className="modal-image"
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="admin-panel">
       <div className="admin-header">
@@ -255,6 +646,12 @@ const AdminPanel = () => {
           onClick={() => setActiveTab('pending')}
         >
           Posts en attente
+        </button>
+        <button 
+          className={`tab ${activeTab === 'allPosts' ? 'active' : ''}`}
+          onClick={() => setActiveTab('allPosts')}
+        >
+          Tous les posts
         </button>
         <button 
           className={`tab ${activeTab === 'users' ? 'active' : ''}`}
@@ -282,11 +679,14 @@ const AdminPanel = () => {
         ) : (
           <>
             {activeTab === 'pending' && renderPendingPosts()}
+            {activeTab === 'allPosts' && renderAllPosts()}
             {activeTab === 'users' && renderUsers()}
             {activeTab === 'stats' && renderStats()}
           </>
         )}
       </div>
+      
+      {renderImageModal()}
     </div>
   );
 };

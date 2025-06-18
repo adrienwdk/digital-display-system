@@ -682,4 +682,61 @@ router.get('/debug/services', async (req, res) => {
   }
 });
 
+// Ajouter cette route dans server/routes/posts.js après les autres routes
+
+// Route pour modifier un post (admin seulement)
+router.put('/:id/edit', auth, admin, async (req, res) => {
+  try {
+    const { content, service } = req.body;
+    const postId = req.params.id;
+    
+    // Validation du service
+    const validServices = ['marketing', 'commerce', 'achat', 'informatique', 'logistique', 'rh', 'comptabilité', 'general'];
+    if (service && !validServices.includes(service)) {
+      return res.status(400).json({ 
+        message: 'Service invalide', 
+        validServices: validServices 
+      });
+    }
+    
+    // Trouver le post
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: 'Post non trouvé' });
+    }
+    
+    // Mettre à jour les champs
+    if (content !== undefined) {
+      post.content = content;
+    }
+    if (service !== undefined) {
+      post.service = service;
+    }
+    
+    // Ajouter une note de modification
+    post.lastModified = {
+      by: req.user.id,
+      at: new Date(),
+      reason: 'Modification par un administrateur'
+    };
+    
+    await post.save();
+    
+    console.log(`Post ${postId} modifié par l'admin ${req.user.id}`);
+    
+    res.json({
+      message: 'Post modifié avec succès',
+      post: {
+        ...post.toObject(),
+        reactions: post.getFormattedReactions(),
+        totalReactions: post.getTotalReactions()
+      }
+    });
+    
+  } catch (err) {
+    console.error('Erreur lors de la modification du post:', err);
+    res.status(500).json({ message: 'Erreur lors de la modification du post' });
+  }
+});
+
 module.exports = router;
