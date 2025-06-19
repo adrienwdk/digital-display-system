@@ -1,4 +1,4 @@
-// server/models/Post.js - Version corrigée avec services mis à jour
+// server/models/Post.js - Version complète avec épinglage
 const mongoose = require('mongoose');
 
 const PostSchema = new mongoose.Schema({
@@ -32,6 +32,30 @@ const PostSchema = new mongoose.Schema({
     default: 'general',
     required: true
   },
+  
+  // ========== NOUVEAUX CHAMPS POUR L'ÉPINGLAGE ==========
+  isPinned: {
+    type: Boolean,
+    default: false
+  },
+  pinnedLocations: [{
+    type: String,
+    enum: ['general', 'service'],
+    default: []
+  }],
+  pinnedAt: {
+    type: Date
+  },
+  pinnedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  pinnedOrder: {
+    type: Number,
+    default: 0
+  },
+  // ========== FIN DES CHAMPS D'ÉPINGLAGE ==========
+  
   // Historique des modifications
   lastModified: {
     by: {
@@ -237,6 +261,33 @@ PostSchema.methods.getFormattedReactions = function() {
   
   return formatted;
 };
+
+// ========== NOUVELLES MÉTHODES POUR L'ÉPINGLAGE ==========
+// Méthode pour épingler un post
+PostSchema.methods.pin = function(userId, locations) {
+  this.isPinned = true;
+  this.pinnedLocations = locations;
+  this.pinnedAt = new Date();
+  this.pinnedBy = userId;
+  this.pinnedOrder = Date.now(); // Utilise le timestamp pour l'ordre
+  return this;
+};
+
+// Méthode pour désépingler un post
+PostSchema.methods.unpin = function() {
+  this.isPinned = false;
+  this.pinnedLocations = [];
+  this.pinnedAt = null;
+  this.pinnedBy = null;
+  this.pinnedOrder = 0;
+  return this;
+};
+
+// Méthode pour vérifier si le post est épinglé dans une location spécifique
+PostSchema.methods.isPinnedIn = function(location) {
+  return this.isPinned && this.pinnedLocations.includes(location);
+};
+// ========== FIN DES MÉTHODES D'ÉPINGLAGE ==========
 
 // Méthode statique pour obtenir les services valides
 PostSchema.statics.getValidServices = function() {

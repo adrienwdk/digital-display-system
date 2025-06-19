@@ -279,3 +279,31 @@
     align-items: center;
     gap: 0.5rem;
   }
+
+  /* Indicateur de post épinglé */
+.pinned-indicator {
+  font-size: 1rem;
+  margin-right: 0.5rem;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+.post.pinned {
+  border: 2px solid var(--primary-color);
+  box-shadow: var(--shadow-lg);
+}
+
+.post.pinned::before {
+  opacity: 1;
+  height: 4px;
+}

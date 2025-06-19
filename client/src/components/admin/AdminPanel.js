@@ -13,6 +13,7 @@ const AdminPanel = () => {
   const [editingPost, setEditingPost] = useState(null);
   const [editForm, setEditForm] = useState({ content: '', service: '' });
   const [imageModal, setImageModal] = useState(null);
+  const [pinnedPosts, setPinnedPosts] = useState([]);
   
   // États pour la gestion de tous les posts
   const [postsFilter, setPostsFilter] = useState({
@@ -42,6 +43,9 @@ const AdminPanel = () => {
           const res = await api.get(`/admin/posts?${params}`);
           setAllPosts(res.data.posts);
           setPostsPagination(res.data.pagination);
+        } else if (activeTab === 'pinned') {
+          const res = await api.get('/admin/posts/pinned');
+          setPinnedPosts(res.data);
         } else if (activeTab === 'users') {
           const res = await api.get('/admin/users');
           setUsers(res.data);
@@ -497,6 +501,14 @@ const AdminPanel = () => {
                 >
                   Supprimer
                 </button>
+                <button 
+  className={`pin-button ${post.isPinned ? 'pinned' : ''}`}
+  onClick={() => handleTogglePin(post._id, post.isPinned, post.pinnedLocations)}
+  title={post.isPinned ? 'Désépingler' : 'Épingler'}
+>
+  {post.isPinned ? '📌 Épinglé' : '📍 Épingler'}
+</button>
+
               </div>
             </div>
           ))
@@ -682,6 +694,7 @@ const AdminPanel = () => {
             {activeTab === 'allPosts' && renderAllPosts()}
             {activeTab === 'users' && renderUsers()}
             {activeTab === 'stats' && renderStats()}
+            {activeTab === 'pinned' && renderPinnedPosts()}
           </>
         )}
       </div>
@@ -689,6 +702,175 @@ const AdminPanel = () => {
       {renderImageModal()}
     </div>
   );
+};
+
+const handleTogglePin = async (postId, currentPinStatus, currentLocations = []) => {
+  try {
+    if (currentPinStatus) {
+      // Désépingler
+      await api.delete(`/admin/posts/${postId}/pin`);
+      
+      // Mettre à jour localement
+      if (activeTab === 'allPosts') {
+        setAllPosts(allPosts.map(post => 
+          post._id === postId 
+            ? { ...post, isPinned: false, pinnedLocations: [] }
+            : post
+        ));
+      } else if (activeTab === 'pending') {
+        setPendingPosts(pendingPosts.map(post => 
+          post._id === postId 
+            ? { ...post, isPinned: false, pinnedLocations: [] }
+            : post
+        ));
+      }
+    } else {
+      // Demander où épingler
+      const locations = await showPinLocationDialog();
+      if (!locations) return; // Annulé
+      
+      await api.put(`/admin/posts/${postId}/pin`, { locations });
+      
+      // Mettre à jour localement
+      if (activeTab === 'allPosts') {
+        setAllPosts(allPosts.map(post => 
+          post._id === postId 
+            ? { ...post, isPinned: true, pinnedLocations: locations }
+            : post
+        ));
+      } else if (activeTab === 'pending') {
+        setPendingPosts(pendingPosts.map(post => 
+          post._id === postId 
+            ? { ...post, isPinned: true, pinnedLocations: locations }
+            : post
+        ));
+      }
+    }
+  } catch (err) {
+    console.error("Erreur lors de la gestion de l'épinglage:", err);
+    setError("Erreur lors de la gestion de l'épinglage");
+  }
+};
+
+// Fonction pour afficher le dialogue de sélection des locations
+const showPinLocationDialog = () => {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.className = 'pin-location-modal';
+    modal.innerHTML = `
+      <div class="pin-location-content">
+        <h3>Où souhaitez-vous épingler ce post ?</h3>
+        <div class="pin-location-options">
+          <label>
+            <input type="checkbox" id="pin-general" value="general" checked>
+            Section Général
+          </label>
+          <label>
+            <input type="checkbox" id="pin-service" value="service" checked>
+            Section du service
+          </label>
+        </div>
+        <div class="pin-location-actions">
+          <button id="pin-confirm">Épingler</button>
+          <button id="pin-cancel">Annuler</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    document.getElementById('pin-confirm').onclick = () => {
+      const locations = [];
+      if (document.getElementById('pin-general').checked) locations.push('general');
+      if (document.getElementById('pin-service').checked) locations.push('service');
+      document.body.removeChild(modal);
+      resolve(locations.length > 0 ? locations : null);
+    };
+    
+    document.getElementById('pin-cancel').onclick = () => {
+      document.body.removeChild(modal);
+      resolve(null);
+    };
+  });
+};
+
+const renderPinnedPosts = () => {
+  if (pinnedPosts.length === 0) {
+    return <p className="no-items">Aucun post épinglé pour le moment.</p>;
+  }
+
+  return pinnedPosts.map(post => (
+    <div className="admin-card" key={post._id}>
+      <div className="card-header">
+        <div className="author-info">
+          <strong>{post.author}</strong>
+          <span className="role">{post.role}</span>
+          <span className="service-badge">{post.service}</span>
+          <span className="pinned-badge">
+            📌 Épinglé
+            <span className="pinned-locations">
+              {post.pinnedLocations.map(loc => (
+                <span key={loc} className="location-tag">{loc}</span>
+              ))}
+            </span>
+          </span>
+        </div>
+        <div className="post-meta">
+          <span className="date">Épinglé le {formatDate(post.pinnedAt)}</span>
+          {post.pinnedBy && (
+            <span className="modified-info">
+              par {post.pinnedBy.firstName} {post.pinnedBy.lastName}
+            </span>
+          )}
+        </div>
+      </div>
+      
+      <div className="card-content">
+        <p>{post.content}</p>
+        
+        {post.images && post.images.length > 0 && (
+          <div className="image-preview">
+            {post.images.map((image, index) => (
+              <img 
+                key={index} 
+                src={getImageUrl(image)} 
+                alt={`Contenu attaché ${index + 1}`}
+                onClick={() => handleImageClick(post.images)}
+                className="thumbnail-image"
+              />
+            ))}
+          </div>
+        )}
+      </div>
+      
+      <div className="card-actions">
+        <button 
+          className="edit-button"
+          onClick={() => handleEditPost(post)}
+        >
+          Modifier
+        </button>
+        <button 
+          className="pin-button pinned"
+          onClick={() => handleTogglePin(post._id, true, post.pinnedLocations)}
+        >
+          📌 Désépingler
+        </button>
+        <button 
+          className="delete-button"
+          onClick={() => handleDeletePost(post._id)}
+        >
+          Supprimer
+        </button>
+        <button 
+  className={`tab ${activeTab === 'pinned' ? 'active' : ''}`}
+  onClick={() => setActiveTab('pinned')}
+>
+  Posts épinglés
+</button>
+      </div>
+    </div>
+  ));
 };
 
 export default AdminPanel;

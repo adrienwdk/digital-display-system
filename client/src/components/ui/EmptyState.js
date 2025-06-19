@@ -19,9 +19,12 @@ const EmptyState = ({
           </svg>
         ),
         title: 'Section Général',
-        subtitle: 'Contenu à venir',
-        description: 'Cette section sera bientôt remplie avec un algorithme intelligent qui sélectionnera les meilleures publications de tous les services.',
-        action: null,
+        subtitle: 'Posts épinglés',
+        description: 'Cette section affiche uniquement les posts importants épinglés par les administrateurs. Les posts épinglés peuvent provenir de n\'importe quel service.',
+        action: isLoggedIn && currentUserService === 'general' ? {
+          text: 'Voir tous les posts',
+          onClick: () => window.location.href = '#all'
+        } : null,
         gradient: 'from-blue-500 to-purple-600'
       };
     }

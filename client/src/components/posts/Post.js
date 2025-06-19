@@ -450,25 +450,30 @@ const Post = ({ post, currentUser }) => {
           </div>
           
           <div className="post-header-right">
-            {(post.service || post.department) && (
-              <Tooltip 
-                content={`Service : ${formatDepartmentName(post.service || post.department)}`}
-                position="bottom"
-              >
-                <span 
-                  className="department-badge"
-                  style={{ 
-                    backgroundColor: getDepartmentBadgeClass(post.service || post.department)
-                  }}
-                >
-                  {formatDepartmentName(post.service || post.department)}
-                </span>
-              </Tooltip>
-            )}
-            <time className="post-time" dateTime={post.createdAt}>
-              {getRelativeTime()}
-            </time>
-          </div>
+  {post.isPinned && (
+    <span className="pinned-indicator" title="Post épinglé">
+      📌
+    </span>
+  )}
+  {(post.service || post.department) && (
+    <Tooltip 
+      content={`Service : ${formatDepartmentName(post.service || post.department)}`}
+      position="bottom"
+    >
+      <span 
+        className="department-badge"
+        style={{ 
+          backgroundColor: getDepartmentBadgeClass(post.service || post.department)
+        }}
+      >
+        {formatDepartmentName(post.service || post.department)}
+      </span>
+    </Tooltip>
+  )}
+  <time className="post-time" dateTime={post.createdAt}>
+    {getRelativeTime()}
+  </time>
+</div>
         </header>
         
         {/* Contenu du post */}

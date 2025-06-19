@@ -215,4 +215,97 @@ router.delete('/posts/:id', auth, admin, async (req, res) => {
   }
 });
 
+// Route pour épingler un post
+router.put('/posts/:id/pin', auth, admin, async (req, res) => {
+  try {
+    const { locations } = req.body; // ['general', 'service'] ou ['general'] ou ['service']
+    
+    if (!locations || !Array.isArray(locations) || locations.length === 0) {
+      return res.status(400).json({ 
+        message: "Veuillez spécifier au moins une location d'épinglage (general, service)" 
+      });
+    }
+    
+    // Valider les locations
+    const validLocations = ['general', 'service'];
+    const invalidLocations = locations.filter(loc => !validLocations.includes(loc));
+    if (invalidLocations.length > 0) {
+      return res.status(400).json({ 
+        message: `Locations invalides: ${invalidLocations.join(', ')}` 
+      });
+    }
+    
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ message: "Post non trouvé" });
+    }
+    
+    // Épingler le post
+    post.pin(req.user.id, locations);
+    await post.save();
+    
+    res.json({
+      message: "Post épinglé avec succès",
+      post: {
+        ...post.toObject(),
+        reactions: post.getFormattedReactions(),
+        totalReactions: post.getTotalReactions()
+      }
+    });
+    
+  } catch (err) {
+    console.error("Erreur lors de l'épinglage du post:", err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
+// Route pour désépingler un post
+router.delete('/posts/:id/pin', auth, admin, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ message: "Post non trouvé" });
+    }
+    
+    // Désépingler le post
+    post.unpin();
+    await post.save();
+    
+    res.json({
+      message: "Post désépinglé avec succès",
+      post: {
+        ...post.toObject(),
+        reactions: post.getFormattedReactions(),
+        totalReactions: post.getTotalReactions()
+      }
+    });
+    
+  } catch (err) {
+    console.error("Erreur lors du désépinglage du post:", err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
+// Route pour obtenir tous les posts épinglés
+router.get('/posts/pinned', auth, admin, async (req, res) => {
+  try {
+    const pinnedPosts = await Post.find({ isPinned: true })
+      .sort({ pinnedOrder: -1 })
+      .populate('userId', 'firstName lastName email avatar')
+      .populate('pinnedBy', 'firstName lastName');
+    
+    const formattedPosts = pinnedPosts.map(post => ({
+      ...post.toObject(),
+      reactions: post.getFormattedReactions(),
+      totalReactions: post.getTotalReactions()
+    }));
+    
+    res.json(formattedPosts);
+    
+  } catch (err) {
+    console.error("Erreur lors de la récupération des posts épinglés:", err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
 module.exports = router;

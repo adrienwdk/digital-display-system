@@ -344,25 +344,37 @@ router.get('/', async (req, res) => {
   try {
     console.log("========== RÉCUPÉRATION TOUS LES POSTS ==========");
     
-    // CORRECTION: Récupérer seulement les posts approuvés ET qui ne sont pas 'general'
-    const posts = await Post.find({ 
+    // Récupérer les posts épinglés dans 'general'
+    const pinnedPosts = await Post.find({ 
       status: 'approved',
-      service: { $ne: 'general' } // Exclure les posts du service 'general'
+      isPinned: true,
+      pinnedLocations: 'general'
+    })
+      .sort({ pinnedOrder: -1 })
+      .populate('userId', 'firstName lastName avatar');
+    
+    // Récupérer les posts normaux (non épinglés et pas 'general')
+    const normalPosts = await Post.find({ 
+      status: 'approved',
+      service: { $ne: 'general' },
+      isPinned: { $ne: true }
     })
       .sort({ createdAt: -1 })
       .populate('userId', 'firstName lastName avatar');
     
-    console.log(`Posts trouvés (hors général): ${posts.length}`);
-    console.log("Services des posts récupérés:", [...new Set(posts.map(p => p.service))].join(', '));
+    // Combiner les posts (épinglés en premier)
+    const allPosts = [...pinnedPosts, ...normalPosts];
     
-    const formattedPosts = posts.map(post => {
+    console.log(`Posts épinglés trouvés: ${pinnedPosts.length}`);
+    console.log(`Posts normaux trouvés: ${normalPosts.length}`);
+    
+    const formattedPosts = allPosts.map(post => {
       const formatted = {
         ...post.toObject(),
         reactions: post.getFormattedReactions(),
         totalReactions: post.getTotalReactions()
       };
       
-      // Ajouter l'avatar de l'utilisateur si disponible
       if (post.userId && post.userId.avatar) {
         formatted.authorAvatar = post.userId.avatar;
       }
@@ -384,11 +396,35 @@ router.get('/service/:service', async (req, res) => {
     const requestedService = req.params.service;
     console.log(`========== RÉCUPÉRATION POSTS SERVICE: ${requestedService} ==========`);
     
-    // CORRECTION: Si c'est 'general', retourner un tableau vide pour le moment
+    // Si c'est 'general', récupérer uniquement les posts épinglés dans 'general'
     if (requestedService === 'general') {
-      console.log("Service 'general' demandé - retour d'un tableau vide");
+      console.log("Service 'general' demandé - récupération des posts épinglés");
+      
+      const pinnedInGeneral = await Post.find({
+        status: 'approved',
+        isPinned: true,
+        pinnedLocations: 'general'
+      })
+        .sort({ pinnedOrder: -1 })
+        .populate('userId', 'firstName lastName avatar');
+      
+      const formattedPosts = pinnedInGeneral.map(post => {
+        const formatted = {
+          ...post.toObject(),
+          reactions: post.getFormattedReactions(),
+          totalReactions: post.getTotalReactions()
+        };
+        
+        if (post.userId && post.userId.avatar) {
+          formatted.authorAvatar = post.userId.avatar;
+        }
+        
+        return formatted;
+      });
+      
+      console.log(`Posts épinglés dans général: ${formattedPosts.length}`);
       console.log("========== FIN RÉCUPÉRATION SERVICE GENERAL ==========");
-      return res.json([]);
+      return res.json(formattedPosts);
     }
     
     // Validation du service
@@ -402,36 +438,40 @@ router.get('/service/:service', async (req, res) => {
       });
     }
     
-    // Débuggage - voir tous les posts disponibles
-    const allPosts = await Post.find({ status: 'approved' });
-    console.log(`Nombre total de posts approuvés: ${allPosts.length}`);
-    console.log(`Services disponibles dans les posts: ${[...new Set(allPosts.map(p => p.service))].join(', ')}`);
+    // Récupérer d'abord les posts épinglés pour ce service
+    const pinnedInService = await Post.find({
+      status: 'approved',
+      isPinned: true,
+      $or: [
+        { pinnedLocations: 'service', service: requestedService },
+        { pinnedLocations: 'general' }
+      ]
+    })
+      .sort({ pinnedOrder: -1 })
+      .populate('userId', 'firstName lastName avatar');
     
-    // Récupérer les posts du service spécifique
-    const posts = await Post.find({ 
+    // Récupérer les posts normaux du service
+    const normalPosts = await Post.find({ 
       service: requestedService,
-      status: 'approved'
+      status: 'approved',
+      isPinned: { $ne: true }
     })
       .sort({ createdAt: -1 })
       .populate('userId', 'firstName lastName avatar');
     
-    console.log(`Posts trouvés pour le service "${requestedService}": ${posts.length}`);
+    // Combiner les posts (épinglés en premier)
+    const allServicePosts = [...pinnedInService, ...normalPosts];
     
-    if (posts.length === 0 && allPosts.length > 0) {
-      console.log('Exemples de posts disponibles:');
-      allPosts.slice(0, 3).forEach((post, i) => {
-        console.log(`Post ${i+1}: ID=${post._id}, Service="${post.service}", Status=${post.status}, Auteur=${post.author}`);
-      });
-    }
+    console.log(`Posts épinglés trouvés pour le service "${requestedService}": ${pinnedInService.length}`);
+    console.log(`Posts normaux trouvés pour le service "${requestedService}": ${normalPosts.length}`);
     
-    const formattedPosts = posts.map(post => {
+    const formattedPosts = allServicePosts.map(post => {
       const formatted = {
         ...post.toObject(),
         reactions: post.getFormattedReactions(),
         totalReactions: post.getTotalReactions()
       };
       
-      // Ajouter l'avatar de l'utilisateur si disponible
       if (post.userId && post.userId.avatar) {
         formatted.authorAvatar = post.userId.avatar;
       }

@@ -41,6 +41,8 @@ function App() {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [filePreviewUrls, setFilePreviewUrls] = useState([]);
   const [postService, setPostService] = useState('general');
+  const [shouldPinPost, setShouldPinPost] = useState(false);
+  const [pinLocations, setPinLocations] = useState(['general', 'service']);
   
   // État pour le mode administrateur
   const [showAdminPanel, setShowAdminPanel] = useState(false);
@@ -113,10 +115,13 @@ function App() {
     console.log("Nombre total de posts:", posts.length);
     console.log("Terme de recherche:", searchQuery);
     
-    // Si c'est l'onglet général, ne rien afficher pour le moment
+    // Si c'est l'onglet général, afficher seulement les posts épinglés dans 'general'
     if (activeTab === 'general') {
-      console.log("Onglet général sélectionné - aucun post affiché");
-      filtered = []; // Vide pour le moment
+      console.log("Onglet général sélectionné - affichage des posts épinglés");
+      filtered = posts.filter(post => 
+        post.isPinned && post.pinnedLocations && post.pinnedLocations.includes('general')
+      );
+      console.log(`Posts épinglés dans général: ${filtered.length}`);
     } else {
       // Filtrer par service/catégorie
       console.log("Services disponibles dans les posts:");
@@ -332,14 +337,12 @@ function App() {
       const formData = new FormData();
       formData.append('content', newPostContent);
       
-      // CORRECTION: Utiliser le service de l'utilisateur connecté si pas de service spécifique choisi
       let serviceToUse = postService;
       if (serviceToUse === 'general' && currentUser?.service && currentUser.service !== 'general') {
         serviceToUse = currentUser.service;
         console.log(`Service général choisi mais utilisateur a un service spécifique: ${serviceToUse}`);
       }
       
-      // Utiliser 'service' au lieu de 'category' pour correspondre au backend
       formData.append('service', serviceToUse);
       
       console.log(`Création du post avec le service: ${serviceToUse}`);
@@ -352,10 +355,26 @@ function App() {
       
       const res = await api.post('/posts', formData);
       
+      // Si l'utilisateur est admin et veut épingler le post
+      if (currentUser?.isAdmin && shouldPinPost && pinLocations.length > 0) {
+        try {
+          await api.put(`/admin/posts/${res.data._id}/pin`, { locations: pinLocations });
+          console.log("Post épinglé avec succès dans:", pinLocations);
+        } catch (pinError) {
+          console.error("Erreur lors de l'épinglage:", pinError);
+          alert("Le post a été créé mais n'a pas pu être épinglé.");
+        }
+      }
+      
       // Si l'utilisateur est admin, ajouter directement le post à la liste
       if (currentUser?.isAdmin) {
         console.log("Post créé par un admin, ajout direct à la liste");
-        setPosts([res.data, ...posts]);
+        const newPost = {
+          ...res.data,
+          isPinned: shouldPinPost,
+          pinnedLocations: shouldPinPost ? pinLocations : []
+        };
+        setPosts([newPost, ...posts]);
       } else {
         alert("Votre publication a été soumise et sera visible après modération.");
       }
@@ -364,6 +383,8 @@ function App() {
       setSelectedFiles([]);
       setFilePreviewUrls([]);
       setPostService('general');
+      setShouldPinPost(false);
+      setPinLocations(['general', 'service']);
       setShowCreatePostModal(false);
     } catch (err) {
       console.error("Erreur lors de la création du post:", err);
@@ -468,6 +489,20 @@ function App() {
       const days = Math.floor(diffInSeconds / 86400);
       return `Il y a ${days} jour${days > 1 ? 's' : ''}`;
     }
+  };
+
+  const formatDepartmentName = (dept) => {
+    const names = {
+      marketing: 'Marketing',
+      rh: 'RH',
+      informatique: 'IT',
+      commerce: 'Commerce',
+      achat: 'Achats',
+      comptabilité: 'Compta',
+      logistique: 'Logistique',
+      general: 'Général'
+    };
+    return names[dept] || (dept ? dept.charAt(0).toUpperCase() + dept.slice(1) : 'Non défini');
   };
 
   // Préparation des données pour le composant Post
@@ -596,6 +631,52 @@ function App() {
                 {currentUser?.service !== 'logistique' && <option value="logistique">Logistique</option>}
               </select>
             </div>
+
+            {isUserAdmin && (
+  <div className="pin-options">
+    <label className="pin-checkbox">
+      <input
+        type="checkbox"
+        checked={shouldPinPost}
+        onChange={(e) => setShouldPinPost(e.target.checked)}
+      />
+      <span>Épingler ce post</span>
+    </label>
+    
+    {shouldPinPost && (
+      <div className="pin-locations-select">
+        <label className="pin-location-label">
+          <input
+            type="checkbox"
+            checked={pinLocations.includes('general')}
+            onChange={(e) => {
+              if (e.target.checked) {
+                setPinLocations([...pinLocations, 'general']);
+              } else {
+                setPinLocations(pinLocations.filter(loc => loc !== 'general'));
+              }
+            }}
+          />
+          <span>Épingler dans Général</span>
+        </label>
+        <label className="pin-location-label">
+          <input
+            type="checkbox"
+            checked={pinLocations.includes('service')}
+            onChange={(e) => {
+              if (e.target.checked) {
+                setPinLocations([...pinLocations, 'service']);
+              } else {
+                setPinLocations(pinLocations.filter(loc => loc !== 'service'));
+              }
+            }}
+          />
+          <span>Épingler dans {formatDepartmentName(postService)}</span>
+        </label>
+      </div>
+    )}
+  </div>
+)}
             
             <textarea
               placeholder="Que voulez-vous partager ?"
@@ -992,43 +1073,52 @@ function App() {
             
             <div className="feed">
               {/* AFFICHAGE CONDITIONNEL AMÉLIORÉ avec EmptyState moderne */}
-              {activeTab === 'general' ? (
-                // Section Général - État vide moderne
-                <EmptyState 
-                  type="general"
-                  isLoggedIn={isLoggedIn}
-                  currentUserService={currentUser?.service}
-                  onCreatePost={() => {
-                    if (currentUser?.service && currentUser.service !== 'general') {
-                      setPostService(currentUser.service);
-                    } else {
-                      setPostService('general');
-                    }
-                    setShowCreatePostModal(true);
-                  }}
-                />
-              ) : filteredPosts.length > 0 ? (
-                // Afficher les posts filtrés
-                filteredPosts.map(post => (
-                  <Post 
-                    key={post._id || post.id} 
-                    post={preparePostData(post)} 
-                    currentUser={currentUser}
-                  />
-                ))
-              ) : (
-                // Aucun post trouvé pour ce service - État vide moderne
-                <EmptyState 
-                  type={searchQuery.trim() !== '' ? 'search' : activeTab}
-                  searchQuery={searchQuery}
-                  isLoggedIn={isLoggedIn}
-                  currentUserService={currentUser?.service}
-                  onCreatePost={() => {
-                    setPostService(activeTab);
-                    setShowCreatePostModal(true);
-                  }}
-                />
-              )}
+              {activeTab === 'general' && filteredPosts.length === 0 ? (
+  // Section Général - État vide si aucun post épinglé
+  <EmptyState 
+    type="general"
+    isLoggedIn={isLoggedIn}
+    currentUserService={currentUser?.service}
+    onCreatePost={() => {
+      if (currentUser?.service && currentUser.service !== 'general') {
+        setPostService(currentUser.service);
+      } else {
+        setPostService('general');
+      }
+      setShowCreatePostModal(true);
+    }}
+  />
+) : activeTab === 'general' ? (
+  // Afficher les posts épinglés dans général
+  filteredPosts.map(post => (
+    <Post 
+      key={post._id || post.id} 
+      post={preparePostData(post)} 
+      currentUser={currentUser}
+    />
+  ))
+) : filteredPosts.length > 0 ? (
+  // Afficher les posts filtrés
+  filteredPosts.map(post => (
+    <Post 
+      key={post._id || post.id} 
+      post={preparePostData(post)} 
+      currentUser={currentUser}
+    />
+  ))
+) : (
+  // Aucun post trouvé - État vide
+  <EmptyState 
+    type={searchQuery.trim() !== '' ? 'search' : activeTab}
+    searchQuery={searchQuery}
+    isLoggedIn={isLoggedIn}
+    currentUserService={currentUser?.service}
+    onCreatePost={() => {
+      setPostService(activeTab);
+      setShowCreatePostModal(true);
+    }}
+  />
+)}
             </div>
           </>
         )}
