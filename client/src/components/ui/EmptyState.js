@@ -1,4 +1,4 @@
-// client/src/components/ui/EmptyState.js - Composant d'état vide moderne
+// client/src/components/ui/EmptyState.js - Version corrigée complète
 import React from 'react';
 
 const EmptyState = ({ 
@@ -15,17 +15,49 @@ const EmptyState = ({
         icon: (
           <svg className="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
-                  d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-4.5B6.75 8.25 3.375 11.625v2.625m15.75 0a3.375 3.375 0 11-6.75 0m6.75 0H9a3.75 3.75 0 000 7.5H9m12-7.5h.375c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125H19.5m-4.5-6.75v6.75a3.75 3.75 0 11-7.5 0v-6.75m7.5 0V9a2.25 2.25 0 00-2.25-2.25H9A2.25 2.25 0 006.75 9v.75m7.5 0h3.75M9 11.25h3.75" />
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
           </svg>
         ),
-        title: 'Section Général',
-        subtitle: 'Posts épinglés',
-        description: 'Cette section affiche uniquement les posts importants épinglés par les administrateurs. Les posts épinglés peuvent provenir de n\'importe quel service.',
-        action: isLoggedIn && currentUserService === 'general' ? {
-          text: 'Voir tous les posts',
-          onClick: () => window.location.href = '#all'
-        } : null,
-        gradient: 'from-blue-500 to-purple-600'
+        title: 'Section Général avec Algorithme',
+        subtitle: 'Feed intelligent personnalisé',
+        description: 'Cette section utilise un algorithme intelligent qui sélectionne le contenu le plus pertinent pour vous.',
+        action: isLoggedIn ? {
+          text: 'Créer une publication',
+          onClick: () => {
+            if (onCreatePost) {
+              onCreatePost();
+            }
+          }
+        } : {
+          text: 'Connectez-vous pour plus de contenu',
+          onClick: null
+        },
+        gradient: 'from-blue-500 to-purple-600',
+        algorithmInfo: {
+          title: 'Comment ça marche ?',
+          features: [
+            {
+              icon: '📌',
+              title: 'Posts épinglés',
+              description: 'Contenu important mis en avant par l\'équipe'
+            },
+            {
+              icon: '🏆',
+              title: 'Post du mois',
+              description: 'Le post avec le plus de réactions ce mois-ci'
+            },
+            {
+              icon: '🆕',
+              title: 'Dernières actualités',
+              description: 'Les 3 publications les plus récentes'
+            },
+            {
+              icon: '💡',
+              title: 'Suggestions',
+              description: 'Contenu additionnel pour enrichir votre feed'
+            }
+          ]
+        }
       };
     }
 
@@ -134,6 +166,26 @@ const EmptyState = ({
           </div>
         )}
         
+        {/* Informations sur l'algorithme (uniquement pour la section général) */}
+        {content.algorithmInfo && (
+          <div className="algorithm-info">
+            <h4 className="algorithm-info-title">{content.algorithmInfo.title}</h4>
+            <div className="algorithm-features">
+              {content.algorithmInfo.features.map((feature, index) => (
+                <div key={index} className="algorithm-feature">
+                  <span className="algorithm-feature-icon" role="img" aria-label={feature.title}>
+                    {feature.icon}
+                  </span>
+                  <div className="algorithm-feature-content">
+                    <h5 className="algorithm-feature-title">{feature.title}</h5>
+                    <p className="algorithm-feature-description">{feature.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
         {/* Indicateurs visuels supplémentaires */}
         <div className="empty-state-indicators">
           {type === 'general' && (
@@ -141,7 +193,7 @@ const EmptyState = ({
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span>Bientôt disponible</span>
+              <span>Algorithme intelligent</span>
             </div>
           )}
           

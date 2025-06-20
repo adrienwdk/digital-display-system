@@ -108,56 +108,104 @@ function App() {
 
   // Effet pour filtrer les posts - LOGIQUE CORRIGÉE
   useEffect(() => {
-    let filtered = [];
-    
-    console.log("=== DÉBUT FILTRAGE ===");
-    console.log("Onglet actif:", activeTab);
-    console.log("Nombre total de posts:", posts.length);
-    console.log("Terme de recherche:", searchQuery);
-    
-    // Si c'est l'onglet général, afficher seulement les posts épinglés dans 'general'
-    if (activeTab === 'general') {
-      console.log("Onglet général sélectionné - affichage des posts épinglés");
-      filtered = posts.filter(post => 
-        post.isPinned && post.pinnedLocations && post.pinnedLocations.includes('general')
-      );
-      console.log(`Posts épinglés dans général: ${filtered.length}`);
-    } else {
-      // Filtrer par service/catégorie
-      console.log("Services disponibles dans les posts:");
-      posts.forEach(post => {
-        console.log(`- Post ${post._id}: service="${post.service}", category="${post.category}"`);
-      });
+    const loadPostsForTab = async () => {
+      let filtered = [];
       
-      // Filtrer par service OU category (pour compatibilité)
-      filtered = posts.filter(post => {
-        const postService = post.service || post.category;
-        const matches = postService === activeTab;
-        if (matches) {
-          console.log(`✅ Post ${post._id} correspond au service "${activeTab}"`);
+      console.log("=== DÉBUT FILTRAGE/CHARGEMENT ===");
+      console.log("Onglet actif:", activeTab);
+      console.log("Terme de recherche:", searchQuery);
+      
+      // Si c'est l'onglet général, utiliser l'algorithme
+      if (activeTab === 'general') {
+        console.log("Onglet général sélectionné - utilisation de l'algorithme");
+        
+        try {
+          // Appeler la nouvelle API avec l'algorithme
+          const res = await api.get('/posts/general-feed');
+          
+          console.log("Algorithme général - données reçues:", {
+            postsCount: res.data.posts.length,
+            algorithm: res.data.algorithm
+          });
+          
+          // Afficher les détails de l'algorithme dans la console
+          if (res.data.algorithm) {
+            console.log("Statistiques de l'algorithme:", res.data.algorithm.stats);
+          }
+          
+          filtered = res.data.posts;
+          
+          // Ajouter des indicateurs visuels selon la raison d'inclusion
+          filtered.forEach(post => {
+            switch (post.feedReason) {
+              case 'pinned':
+                post.algorithmLabel = 'Épinglé';
+                post.algorithmColor = '#ff6b35';
+                break;
+              case 'top_of_month':
+                post.algorithmLabel = 'Post du mois';
+                post.algorithmColor = '#ffd700';
+                break;
+              case 'recent':
+                post.algorithmLabel = 'Récent';
+                post.algorithmColor = '#4caf50';
+                break;
+              case 'filler':
+                post.algorithmLabel = 'Suggéré';
+                post.algorithmColor = '#9e9e9e';
+                break;
+              default:
+                post.algorithmLabel = null;
+                post.algorithmColor = null;
+            }
+          });
+          
+        } catch (error) {
+          console.error("Erreur lors du chargement de l'algorithme général:", error);
+          // Fallback vers l'ancienne méthode
+          filtered = posts.filter(post => 
+            post.isPinned && post.pinnedLocations && post.pinnedLocations.includes('general')
+          );
         }
-        return matches;
-      });
+      } else {
+        // Logique existante pour les autres onglets
+        console.log("Services disponibles dans les posts:");
+        posts.forEach(post => {
+          console.log(`- Post ${post._id}: service="${post.service}", category="${post.category}"`);
+        });
+        
+        // Filtrer par service OU category (pour compatibilité)
+        filtered = posts.filter(post => {
+          const postService = post.service || post.category;
+          const matches = postService === activeTab;
+          if (matches) {
+            console.log(`✅ Post ${post._id} correspond au service "${activeTab}"`);
+          }
+          return matches;
+        });
+        
+        console.log(`Posts trouvés pour le service "${activeTab}":`, filtered.length);
+      }
       
-      console.log(`Posts trouvés pour le service "${activeTab}":`, filtered.length);
-    }
-    
-    // Filtre par recherche si une recherche est active
-    if (searchQuery.trim() !== '') {
-      const query = searchQuery.toLowerCase().trim();
-      console.log("Application du filtre de recherche:", query);
+      // Filtre par recherche si une recherche est active
+      if (searchQuery.trim() !== '') {
+        const query = searchQuery.toLowerCase().trim();
+        console.log("Application du filtre de recherche:", query);
+        
+        filtered = filtered.filter(post => 
+          (post.content && post.content.toLowerCase().includes(query)) ||
+          (post.author && post.author.toLowerCase().includes(query)) ||
+          (post.role && post.role.toLowerCase().includes(query))
+        );
+        
+        console.log(`Posts après recherche:`, filtered.length);
+      }
       
-      filtered = filtered.filter(post => 
-        (post.content && post.content.toLowerCase().includes(query)) ||
-        (post.author && post.author.toLowerCase().includes(query)) ||
-        (post.role && post.role.toLowerCase().includes(query))
-      );
-      
-      console.log(`Posts après recherche:`, filtered.length);
-    }
-    
-    console.log("=== FIN FILTRAGE ===");
-    setFilteredPosts(filtered);
+      console.log("=== FIN FILTRAGE/CHARGEMENT ===");
+      setFilteredPosts(filtered);
+    };
+  
+    loadPostsForTab();
   }, [searchQuery, activeTab, posts]);
 
   // Fonction de succès OAuth

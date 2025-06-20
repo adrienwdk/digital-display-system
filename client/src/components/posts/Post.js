@@ -5,6 +5,7 @@ import Avatar from '../ui/Avatar';
 import Tooltip from '../ui/Tooltip';
 import reactionsService from '../../services/reactionsService';
 import { useReactionAnimations, addAnimationStyles, ReactionSounds } from '../../utils/reactionAnimations';
+import AlgorithmBadge from '../ui/AlgorithmBadge';
 
 const Post = ({ post, currentUser }) => {
   const [showGallery, setShowGallery] = useState(false);
@@ -450,11 +451,23 @@ const Post = ({ post, currentUser }) => {
           </div>
           
           <div className="post-header-right">
+  {/* Indicateur d'algorithme (nouveau) */}
+  {post.algorithmLabel && (
+    <AlgorithmBadge 
+      label={post.algorithmLabel}
+      color={post.algorithmColor}
+      reason={post.feedReason}
+    />
+  )}
+  
+  {/* Post épinglé existant */}
   {post.isPinned && (
     <span className="pinned-indicator" title="Post épinglé">
       📌
     </span>
   )}
+  
+  {/* Badge de service existant */}
   {(post.service || post.department) && (
     <Tooltip 
       content={`Service : ${formatDepartmentName(post.service || post.department)}`}
@@ -470,6 +483,8 @@ const Post = ({ post, currentUser }) => {
       </span>
     </Tooltip>
   )}
+  
+  {/* Timestamp existant */}
   <time className="post-time" dateTime={post.createdAt}>
     {getRelativeTime()}
   </time>

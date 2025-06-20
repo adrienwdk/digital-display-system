@@ -245,3 +245,101 @@
     font-weight: 700;
     margin-bottom: 0.5rem;
   }
+
+  /* Informations sur l'algorithme dans EmptyState */
+.algorithm-info {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+  text-align: left;
+  max-width: 500px;
+}
+
+.algorithm-info-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.algorithm-features {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+.algorithm-feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-primary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  transition: all var(--transition-normal);
+}
+
+.algorithm-feature:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-color);
+}
+
+.algorithm-feature-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-light);
+  border-radius: 50%;
+}
+
+.algorithm-feature-content {
+  flex: 1;
+}
+
+.algorithm-feature-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.25rem 0;
+}
+
+.algorithm-feature-description {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Badge spécial pour l'algorithme intelligent */
+.coming-soon-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, rgba(255, 107, 53, 0.15) 0%, rgba(255, 107, 53, 0.1) 100%);
+  border: 1px solid var(--primary-color);
+  color: var(--primary-color);
+  border-radius: var(--radius-xl);
+  font-size: 0.75rem;
+  font-weight: 600;
+  animation: pulse-algorithm 2s ease-in-out infinite;
+}
+
+@keyframes pulse-algorithm {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}

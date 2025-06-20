@@ -779,4 +779,314 @@ router.put('/:id/edit', auth, admin, async (req, res) => {
   }
 });
 
+// Route pour récupérer les posts selon l'algorithme de la section général
+router.get('/general-feed', async (req, res) => {
+  try {
+    console.log("========== ALGORITHME SECTION GÉNÉRAL ==========");
+    
+    // 1. Récupérer les posts épinglés (priorité absolue)
+    const pinnedPosts = await Post.find({
+      status: 'approved',
+      isPinned: true,
+      pinnedLocations: 'general'
+    })
+      .sort({ pinnedOrder: -1 })
+      .populate('userId', 'firstName lastName avatar');
+
+    console.log(`Posts épinglés trouvés: ${pinnedPosts.length}`);
+
+    // 2. Récupérer les 3 derniers posts publiés (tous services confondus, sauf général)
+    const latestPosts = await Post.find({
+      status: 'approved',
+      service: { $ne: 'general' },
+      isPinned: { $ne: true }
+    })
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .populate('userId', 'firstName lastName avatar');
+
+    console.log(`3 derniers posts trouvés: ${latestPosts.length}`);
+
+    // 3. Récupérer le post du mois avec le plus de réactions
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const endOfMonth = new Date();
+    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+    endOfMonth.setDate(0);
+    endOfMonth.setHours(23, 59, 59, 999);
+
+    console.log(`Recherche du post du mois entre ${startOfMonth} et ${endOfMonth}`);
+
+    // Agrégation pour trouver le post avec le plus de réactions ce mois
+    const topPostOfMonth = await Post.aggregate([
+      {
+        $match: {
+          status: 'approved',
+          createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+          isPinned: { $ne: true }
+        }
+      },
+      {
+        $addFields: {
+          totalReactions: {
+            $add: [
+              '$reactions.like.count',
+              '$reactions.love.count',
+              '$reactions.bravo.count',
+              '$reactions.interesting.count',
+              '$reactions.welcome.count'
+            ]
+          }
+        }
+      },
+      {
+        $match: {
+          totalReactions: { $gt: 0 } // Seulement les posts avec au moins une réaction
+        }
+      },
+      {
+        $sort: { totalReactions: -1, createdAt: -1 }
+      },
+      {
+        $limit: 1
+      }
+    ]);
+
+    let topPostPopulated = null;
+    if (topPostOfMonth.length > 0) {
+      topPostPopulated = await Post.findById(topPostOfMonth[0]._id)
+        .populate('userId', 'firstName lastName avatar');
+      console.log(`Post du mois trouvé: ${topPostPopulated._id} avec ${topPostOfMonth[0].totalReactions} réactions`);
+    } else {
+      console.log("Aucun post avec des réactions trouvé ce mois");
+    }
+
+    // 4. Construire le feed final en évitant les doublons
+    const feedPosts = [];
+    const addedPostIds = new Set();
+
+    // Ajouter les posts épinglés en premier
+    pinnedPosts.forEach(post => {
+      if (!addedPostIds.has(post._id.toString())) {
+        feedPosts.push({
+          ...post.toObject(),
+          feedReason: 'pinned',
+          reactions: post.getFormattedReactions(),
+          totalReactions: post.getTotalReactions(),
+          authorAvatar: post.userId?.avatar || null
+        });
+        addedPostIds.add(post._id.toString());
+      }
+    });
+
+    // Ajouter le post du mois (si différent des épinglés)
+    if (topPostPopulated && !addedPostIds.has(topPostPopulated._id.toString())) {
+      feedPosts.push({
+        ...topPostPopulated.toObject(),
+        feedReason: 'top_of_month',
+        reactions: topPostPopulated.getFormattedReactions(),
+        totalReactions: topPostPopulated.getTotalReactions(),
+        authorAvatar: topPostPopulated.userId?.avatar || null
+      });
+      addedPostIds.add(topPostPopulated._id.toString());
+    }
+
+    // Ajouter les 3 derniers posts (si pas déjà inclus)
+    latestPosts.forEach(post => {
+      if (!addedPostIds.has(post._id.toString())) {
+        feedPosts.push({
+          ...post.toObject(),
+          feedReason: 'recent',
+          reactions: post.getFormattedReactions(),
+          totalReactions: post.getTotalReactions(),
+          authorAvatar: post.userId?.avatar || null
+        });
+        addedPostIds.add(post._id.toString());
+      }
+    });
+
+    // 5. Si on n'a pas assez de posts, compléter avec d'autres posts populaires
+    const minPostsCount = 5;
+    if (feedPosts.length < minPostsCount) {
+      const additionalNeeded = minPostsCount - feedPosts.length;
+      
+      const additionalPosts = await Post.find({
+        status: 'approved',
+        isPinned: { $ne: true },
+        _id: { $nin: Array.from(addedPostIds) }
+      })
+        .sort({ createdAt: -1 })
+        .limit(additionalNeeded)
+        .populate('userId', 'firstName lastName avatar');
+
+      additionalPosts.forEach(post => {
+        feedPosts.push({
+          ...post.toObject(),
+          feedReason: 'filler',
+          reactions: post.getFormattedReactions(),
+          totalReactions: post.getTotalReactions(),
+          authorAvatar: post.userId?.avatar || null
+        });
+      });
+    }
+
+    console.log(`Feed final construit avec ${feedPosts.length} posts`);
+    console.log("Répartition:", {
+      pinned: feedPosts.filter(p => p.feedReason === 'pinned').length,
+      topOfMonth: feedPosts.filter(p => p.feedReason === 'top_of_month').length,
+      recent: feedPosts.filter(p => p.feedReason === 'recent').length,
+      filler: feedPosts.filter(p => p.feedReason === 'filler').length
+    });
+
+    console.log("========== FIN ALGORITHME SECTION GÉNÉRAL ==========");
+
+    res.json({
+      posts: feedPosts,
+      algorithm: {
+        description: "Posts épinglés + Post du mois le plus populaire + 3 derniers posts",
+        stats: {
+          pinnedCount: feedPosts.filter(p => p.feedReason === 'pinned').length,
+          topOfMonthCount: feedPosts.filter(p => p.feedReason === 'top_of_month').length,
+          recentCount: feedPosts.filter(p => p.feedReason === 'recent').length,
+          totalPosts: feedPosts.length
+        },
+        period: {
+          monthStart: startOfMonth,
+          monthEnd: endOfMonth
+        }
+      }
+    });
+
+  } catch (err) {
+    console.error("Erreur lors de l'exécution de l'algorithme général:", err);
+    res.status(500).json({ 
+      message: "Erreur lors de la récupération du feed général",
+      error: err.message
+    });
+  }
+});
+
+// Route pour obtenir des statistiques sur l'algorithme (debug/admin)
+router.get('/general-stats', auth, admin, async (req, res) => {
+  try {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const endOfMonth = new Date();
+    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+    endOfMonth.setDate(0);
+    endOfMonth.setHours(23, 59, 59, 999);
+
+    // Statistiques des posts de ce mois
+    const monthlyStats = await Post.aggregate([
+      {
+        $match: {
+          status: 'approved',
+          createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+        }
+      },
+      {
+        $addFields: {
+          totalReactions: {
+            $add: [
+              '$reactions.like.count',
+              '$reactions.love.count',
+              '$reactions.bravo.count',
+              '$reactions.interesting.count',
+              '$reactions.welcome.count'
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalPosts: { $sum: 1 },
+          totalReactions: { $sum: '$totalReactions' },
+          avgReactions: { $avg: '$totalReactions' },
+          maxReactions: { $max: '$totalReactions' },
+          postsWithReactions: {
+            $sum: {
+              $cond: [{ $gt: ['$totalReactions', 0] }, 1, 0]
+            }
+          }
+        }
+      }
+    ]);
+
+    // Top 5 des posts les plus populaires du mois
+    const topPostsOfMonth = await Post.aggregate([
+      {
+        $match: {
+          status: 'approved',
+          createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+        }
+      },
+      {
+        $addFields: {
+          totalReactions: {
+            $add: [
+              '$reactions.like.count',
+              '$reactions.love.count',
+              '$reactions.bravo.count',
+              '$reactions.interesting.count',
+              '$reactions.welcome.count'
+            ]
+          }
+        }
+      },
+      {
+        $sort: { totalReactions: -1, createdAt: -1 }
+      },
+      {
+        $limit: 5
+      },
+      {
+        $project: {
+          _id: 1,
+          author: 1,
+          content: { $substr: ['$content', 0, 100] },
+          service: 1,
+          totalReactions: 1,
+          createdAt: 1
+        }
+      }
+    ]);
+
+    res.json({
+      period: {
+        start: startOfMonth,
+        end: endOfMonth
+      },
+      monthlyStats: monthlyStats[0] || {
+        totalPosts: 0,
+        totalReactions: 0,
+        avgReactions: 0,
+        maxReactions: 0,
+        postsWithReactions: 0
+      },
+      topPostsOfMonth,
+      algorithm: {
+        description: "L'algorithme sélectionne les posts épinglés, le post du mois avec le plus de réactions, et les 3 posts les plus récents",
+        criteria: [
+          "Posts épinglés (priorité absolue)",
+          "Post du mois avec le plus de réactions",
+          "3 derniers posts publiés (tous services)",
+          "Posts de complément si nécessaire"
+        ]
+      }
+    });
+
+  } catch (err) {
+    console.error("Erreur lors de la récupération des statistiques:", err);
+    res.status(500).json({ 
+      message: "Erreur lors de la récupération des statistiques",
+      error: err.message
+    });
+  }
+});
+
 module.exports = router;

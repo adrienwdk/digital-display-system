@@ -1,0 +1,282 @@
+/* client/src/styles/components/algorithm.css */
+
+/* Badge d'algorithme */
+.algorithm-badge {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .algorithm-badge::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transition: left 0.5s ease;
+  }
+  
+  .algorithm-badge:hover::before {
+    left: 100%;
+  }
+  
+  /* Animation spéciale pour le post du mois */
+  @keyframes sparkle {
+    0%, 100% { 
+      transform: scale(1);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    50% { 
+      transform: scale(1.05);
+      box-shadow: 0 2px 8px rgba(255,215,0,0.4);
+    }
+  }
+  
+  .algorithm-badge[data-reason="top_of_month"] {
+    animation: sparkle 2s ease-in-out infinite;
+    background: linear-gradient(45deg, #ffd700, #ffed4e, #ffd700) !important;
+  }
+  
+  /* Informations sur l'algorithme dans EmptyState */
+  .algorithm-info {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+    text-align: left;
+    max-width: 500px;
+  }
+  
+  .algorithm-info-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+  
+  .algorithm-features {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+  }
+  
+  .algorithm-feature {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg-primary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-normal);
+  }
+  
+  .algorithm-feature:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary-color);
+  }
+  
+  .algorithm-feature-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-light);
+    border-radius: 50%;
+  }
+  
+  .algorithm-feature-content {
+    flex: 1;
+  }
+  
+  .algorithm-feature-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem 0;
+  }
+  
+  .algorithm-feature-description {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.4;
+  }
+  
+  /* Indicateur algorithmique dans le header du post */
+  .post-header-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+  }
+  
+  .post-header-right .algorithm-badge {
+    order: -1; /* Afficher en premier */
+  }
+  
+  .post-header-right .pinned-indicator {
+    order: 0;
+  }
+  
+  .post-header-right .department-badge {
+    order: 1;
+  }
+  
+  .post-header-right .post-time {
+    order: 2;
+  }
+  
+  /* Badge spécial pour le post du mois dans le feed général */
+  .post.top-of-month {
+    border: 2px solid #ffd700;
+    box-shadow: 0 4px 20px rgba(255, 215, 0, 0.2);
+    position: relative;
+  }
+  
+  .post.top-of-month::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #ffd700, #ffed4e, #ffd700);
+    animation: shimmer 2s ease-in-out infinite;
+  }
+  
+  @keyframes shimmer {
+    0%, 100% {
+      opacity: 0.8;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+  
+  /* Responsive pour les badges d'algorithme */
+  @media (max-width: 768px) {
+    .algorithm-badge {
+      font-size: 9px;
+      padding: 1px 6px;
+      gap: 1px;
+    }
+    
+    .algorithm-features {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+    
+    .algorithm-feature {
+      padding: 0.5rem;
+    }
+    
+    .algorithm-feature-icon {
+      width: 28px;
+      height: 28px;
+      font-size: 1rem;
+    }
+    
+    .post-header-right {
+      gap: 0.125rem;
+    }
+  }
+  
+  /* Animation d'entrée pour les posts du feed général */
+  .general-feed-post {
+    animation: fadeInUp 0.5s ease-out;
+  }
+  
+  .general-feed-post:nth-child(1) { animation-delay: 0.1s; }
+  .general-feed-post:nth-child(2) { animation-delay: 0.2s; }
+  .general-feed-post:nth-child(3) { animation-delay: 0.3s; }
+  .general-feed-post:nth-child(4) { animation-delay: 0.4s; }
+  .general-feed-post:nth-child(5) { animation-delay: 0.5s; }
+  
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Indicateur de loading pour l'algorithme */
+  .algorithm-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 2rem;
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border-light);
+    margin: 1rem 0;
+  }
+  
+  .algorithm-loading-icon {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--border-color);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  .algorithm-loading-text {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    text-align: center;
+  }
+  
+  /* Statistiques de l'algorithme (pour debug/admin) */
+  .algorithm-stats {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    margin: 1rem 0;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: monospace;
+  }
+  
+  .algorithm-stats-title {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+  }
+  
+  .algorithm-stats-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.25rem;
+  }
+  
+  /* Tooltip spécial pour les informations d'algorithme */
+  .algorithm-tooltip {
+    max-width: 250px;
+    text-align: left;
+    line-height: 1.4;
+  }
+  
+  .algorithm-tooltip-title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: var(--primary-color);
+  }
+  
+  .algorithm-tooltip-description {
+    font-size: 0.8rem;
+    opacity: 0.9;
+  }
