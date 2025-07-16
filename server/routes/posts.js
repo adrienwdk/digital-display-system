@@ -1,4 +1,4 @@
-// server/routes/posts.js - Version corrigée pour le filtrage par service
+// server/routes/posts.js - Version corrigée pour l'épinglage et la visibilité des posts
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
@@ -225,7 +225,7 @@ router.get('/:id/user-reaction', auth, async (req, res) => {
 
 // ==================== ROUTES POUR LES POSTS ====================
 
-// Route pour créer un post - LOGIQUE CORRIGÉE
+// Route pour créer un post
 router.post('/', auth, upload.array('files', 10), async (req, res) => {
   try {
     console.log("========== DÉBUT CRÉATION POST ==========");
@@ -234,7 +234,6 @@ router.post('/', auth, upload.array('files', 10), async (req, res) => {
     
     const { content, title, tags, service } = req.body;
     
-    // CORRECTION: Validation du service
     const validServices = ['marketing', 'commerce', 'achat', 'informatique', 'logistique', 'rh', 'comptabilité', 'general'];
     
     // Récupérer les informations de l'utilisateur
@@ -243,10 +242,9 @@ router.post('/', auth, upload.array('files', 10), async (req, res) => {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
     
-    // CORRECTION: Déterminer le service du post
+    // Déterminer le service du post
     let postService = service || 'general';
     
-    // Si le service choisi est 'general' mais que l'utilisateur a un service spécifique
     if (postService === 'general' && user.service && user.service !== 'general') {
       postService = user.service;
       console.log(`Service 'general' choisi mais utilisateur du service '${user.service}', utilisation du service utilisateur`);
@@ -272,7 +270,7 @@ router.post('/', auth, upload.array('files', 10), async (req, res) => {
       role: user.role,
       userId: req.user.id,
       status: user.isAdmin ? 'approved' : 'pending',
-      service: postService, // CORRECTION: Utiliser le service validé
+      service: postService,
       tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
       reactions: {
         like: { count: 0, users: [] },
@@ -284,7 +282,7 @@ router.post('/', auth, upload.array('files', 10), async (req, res) => {
       likes: 0
     });
     
-    // Traitement des fichiers (code existant inchangé)
+    // Traitement des fichiers
     if (req.files && req.files.length > 0) {
       console.log("Traitement des fichiers pour le post...");
       
@@ -339,34 +337,19 @@ router.post('/', auth, upload.array('files', 10), async (req, res) => {
   }
 });
 
-// Route pour récupérer tous les posts approuvés - EXCLUDE LES POSTS GENERAL
+// CORRECTION: Route pour récupérer tous les posts approuvés (SANS exclure les posts du service général)
 router.get('/', async (req, res) => {
   try {
     console.log("========== RÉCUPÉRATION TOUS LES POSTS ==========");
     
-    // Récupérer les posts épinglés dans 'general'
-    const pinnedPosts = await Post.find({ 
-      status: 'approved',
-      isPinned: true,
-      pinnedLocations: 'general'
-    })
-      .sort({ pinnedOrder: -1 })
-      .populate('userId', 'firstName lastName avatar');
-    
-    // Récupérer les posts normaux (non épinglés et pas 'general')
-    const normalPosts = await Post.find({ 
-      status: 'approved',
-      service: { $ne: 'general' },
-      isPinned: { $ne: true }
+    // Récupérer TOUS les posts approuvés, dans l'ordre de création décroissant
+    const allPosts = await Post.find({ 
+      status: 'approved'
     })
       .sort({ createdAt: -1 })
       .populate('userId', 'firstName lastName avatar');
     
-    // Combiner les posts (épinglés en premier)
-    const allPosts = [...pinnedPosts, ...normalPosts];
-    
-    console.log(`Posts épinglés trouvés: ${pinnedPosts.length}`);
-    console.log(`Posts normaux trouvés: ${normalPosts.length}`);
+    console.log(`Posts trouvés: ${allPosts.length}`);
     
     const formattedPosts = allPosts.map(post => {
       const formatted = {
@@ -390,41 +373,17 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Route pour récupérer les posts par service - CORRIGÉE
+// CORRECTION: Route pour récupérer les posts par service
 router.get('/service/:service', async (req, res) => {
   try {
     const requestedService = req.params.service;
     console.log(`========== RÉCUPÉRATION POSTS SERVICE: ${requestedService} ==========`);
     
-    // Si c'est 'general', récupérer uniquement les posts épinglés dans 'general'
+    // Si c'est 'general', utiliser l'algorithme spécial
     if (requestedService === 'general') {
-      console.log("Service 'general' demandé - récupération des posts épinglés");
-      
-      const pinnedInGeneral = await Post.find({
-        status: 'approved',
-        isPinned: true,
-        pinnedLocations: 'general'
-      })
-        .sort({ pinnedOrder: -1 })
-        .populate('userId', 'firstName lastName avatar');
-      
-      const formattedPosts = pinnedInGeneral.map(post => {
-        const formatted = {
-          ...post.toObject(),
-          reactions: post.getFormattedReactions(),
-          totalReactions: post.getTotalReactions()
-        };
-        
-        if (post.userId && post.userId.avatar) {
-          formatted.authorAvatar = post.userId.avatar;
-        }
-        
-        return formatted;
-      });
-      
-      console.log(`Posts épinglés dans général: ${formattedPosts.length}`);
-      console.log("========== FIN RÉCUPÉRATION SERVICE GENERAL ==========");
-      return res.json(formattedPosts);
+      console.log("Service 'general' demandé - redirection vers l'algorithme");
+      // Rediriger vers l'endpoint de l'algorithme général
+      return res.redirect('/api/posts/general-feed');
     }
     
     // Validation du service
@@ -438,34 +397,22 @@ router.get('/service/:service', async (req, res) => {
       });
     }
     
-    // Récupérer d'abord les posts épinglés pour ce service
-    const pinnedInService = await Post.find({
-      status: 'approved',
-      isPinned: true,
-      $or: [
-        { pinnedLocations: 'service', service: requestedService },
-        { pinnedLocations: 'general' }
-      ]
-    })
-      .sort({ pinnedOrder: -1 })
-      .populate('userId', 'firstName lastName avatar');
-    
-    // Récupérer les posts normaux du service
-    const normalPosts = await Post.find({ 
+    // CORRECTION: Récupérer TOUS les posts du service, épinglés ou non
+    // Les posts épinglés seront affichés en premier grâce au tri
+    const servicePosts = await Post.find({ 
       service: requestedService,
-      status: 'approved',
-      isPinned: { $ne: true }
+      status: 'approved'
     })
-      .sort({ createdAt: -1 })
+      .sort({ 
+        isPinned: -1,    // Posts épinglés en premier
+        pinnedOrder: -1, // Puis par ordre d'épinglage
+        createdAt: -1    // Puis par date de création
+      })
       .populate('userId', 'firstName lastName avatar');
     
-    // Combiner les posts (épinglés en premier)
-    const allServicePosts = [...pinnedInService, ...normalPosts];
+    console.log(`Posts trouvés pour le service "${requestedService}": ${servicePosts.length}`);
     
-    console.log(`Posts épinglés trouvés pour le service "${requestedService}": ${pinnedInService.length}`);
-    console.log(`Posts normaux trouvés pour le service "${requestedService}": ${normalPosts.length}`);
-    
-    const formattedPosts = allServicePosts.map(post => {
+    const formattedPosts = servicePosts.map(post => {
       const formatted = {
         ...post.toObject(),
         reactions: post.getFormattedReactions(),
@@ -501,7 +448,6 @@ router.get('/pending', auth, admin, async (req, res) => {
         totalReactions: post.getTotalReactions()
       };
       
-      // Ajouter l'avatar de l'utilisateur si disponible
       if (post.userId && post.userId.avatar) {
         formatted.authorAvatar = post.userId.avatar;
       }
@@ -722,8 +668,6 @@ router.get('/debug/services', async (req, res) => {
   }
 });
 
-// Ajouter cette route dans server/routes/posts.js après les autres routes
-
 // Route pour modifier un post (admin seulement)
 router.put('/:id/edit', auth, admin, async (req, res) => {
   try {
@@ -779,12 +723,12 @@ router.put('/:id/edit', auth, admin, async (req, res) => {
   }
 });
 
-// Route pour récupérer les posts selon l'algorithme de la section général
+// CORRECTION: Route pour récupérer les posts selon l'algorithme de la section général
 router.get('/general-feed', async (req, res) => {
   try {
     console.log("========== ALGORITHME SECTION GÉNÉRAL ==========");
     
-    // 1. Récupérer les posts épinglés (priorité absolue)
+    // 1. Récupérer les posts épinglés dans 'general' (priorité absolue)
     const pinnedPosts = await Post.find({
       status: 'approved',
       isPinned: true,
@@ -795,11 +739,10 @@ router.get('/general-feed', async (req, res) => {
 
     console.log(`Posts épinglés trouvés: ${pinnedPosts.length}`);
 
-    // 2. Récupérer les 3 derniers posts publiés (tous services confondus, sauf général)
+    // 2. Récupérer les 3 derniers posts publiés (tous services confondus)
     const latestPosts = await Post.find({
       status: 'approved',
-      service: { $ne: 'general' },
-      isPinned: { $ne: true }
+      isPinned: { $ne: true } // Exclure les posts déjà épinglés
     })
       .sort({ createdAt: -1 })
       .limit(3)

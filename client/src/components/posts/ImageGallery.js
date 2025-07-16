@@ -1,4 +1,4 @@
-// client/src/components/posts/ImageGallery.js
+// client/src/components/posts/ImageGallery.js - Version corrigée
 import React, { useState, useEffect, useCallback } from 'react';
 import './ImageGallery.css';
 
@@ -9,10 +9,26 @@ const ImageGallery = ({ images, initialIndex = 0, onClose }) => {
   const [touchEnd, setTouchEnd] = useState(null);
 
   // Navigation avec les flèches du clavier
+  const goToPrevious = useCallback(() => {
+    if (!images || images.length === 0) return;
+    setCurrentIndex((prevIndex) => 
+      prevIndex === 0 ? images.length - 1 : prevIndex - 1
+    );
+    setIsLoading(true);
+  }, [images]);
+
+  const goToNext = useCallback(() => {
+    if (!images || images.length === 0) return;
+    setCurrentIndex((prevIndex) => 
+      prevIndex === images.length - 1 ? 0 : prevIndex + 1
+    );
+    setIsLoading(true);
+  }, [images]);
+
   const handleKeyDown = useCallback((event) => {
     switch (event.key) {
       case 'Escape':
-        onClose();
+        if (onClose) onClose();
         break;
       case 'ArrowLeft':
         goToPrevious();
@@ -25,6 +41,22 @@ const ImageGallery = ({ images, initialIndex = 0, onClose }) => {
     }
   }, [onClose, goToPrevious, goToNext]);
 
+  // Vérifier que les images sont valides
+  useEffect(() => {
+    if (!images || !Array.isArray(images) || images.length === 0) {
+      console.error('ImageGallery: Images invalides ou vides', images);
+      if (onClose) onClose();
+      return;
+    }
+
+    // Vérifier l'index initial
+    if (initialIndex >= 0 && initialIndex < images.length) {
+      setCurrentIndex(initialIndex);
+    } else {
+      setCurrentIndex(0);
+    }
+  }, [initialIndex, images, onClose]);
+
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown);
     document.body.style.overflow = 'hidden'; // Empêcher le scroll
@@ -34,21 +66,6 @@ const ImageGallery = ({ images, initialIndex = 0, onClose }) => {
       document.body.style.overflow = 'unset';
     };
   }, [handleKeyDown]);
-
-  // Navigation
-  const goToNext = () => {
-    setCurrentIndex((prevIndex) => 
-      prevIndex === images.length - 1 ? 0 : prevIndex + 1
-    );
-    setIsLoading(true);
-  };
-
-  const goToPrevious = () => {
-    setCurrentIndex((prevIndex) => 
-      prevIndex === 0 ? images.length - 1 : prevIndex - 1
-    );
-    setIsLoading(true);
-  };
 
   // Gestion du touch pour mobile
   const handleTouchStart = (e) => {
@@ -87,9 +104,23 @@ const ImageGallery = ({ images, initialIndex = 0, onClose }) => {
   // Fermer en cliquant sur l'arrière-plan
   const handleBackdropClick = (e) => {
     if (e.target.classList.contains('gallery-backdrop')) {
-      onClose();
+      if (onClose) onClose();
     }
   };
+
+  // Vérifications de sécurité avant le rendu
+  if (!images || !Array.isArray(images) || images.length === 0) {
+    return null;
+  }
+
+  // Vérifier que l'index actuel est valide
+  const safeCurrentIndex = Math.max(0, Math.min(currentIndex, images.length - 1));
+  const currentImage = images[safeCurrentIndex];
+
+  if (!currentImage) {
+    console.error('Image actuelle invalide:', { currentIndex, safeCurrentIndex, imagesLength: images.length });
+    return null;
+  }
 
   return (
     <div 
@@ -103,9 +134,9 @@ const ImageGallery = ({ images, initialIndex = 0, onClose }) => {
         {/* Header avec compteur et bouton fermer */}
         <div className="gallery-header">
           <div className="image-counter">
-            {currentIndex + 1} / {images.length}
+            {safeCurrentIndex + 1} / {images.length}
           </div>
-          <button className="close-button" onClick={onClose}>
+          <button className="close-button" onClick={() => onClose && onClose()}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <line x1="18" y1="6" x2="6" y2="18" stroke="white" strokeWidth="2"/>
               <line x1="6" y1="6" x2="18" y2="18" stroke="white" strokeWidth="2"/>
@@ -122,12 +153,13 @@ const ImageGallery = ({ images, initialIndex = 0, onClose }) => {
           )}
           
           <img
-            src={images[currentIndex]}
-            alt={`Contenu ${currentIndex + 1}`}
+            src={currentImage}
+            alt={`Contenu ${safeCurrentIndex + 1}`}
             className={`gallery-image ${isLoading ? 'loading' : ''}`}
             onLoad={handleImageLoad}
             onError={handleImageError}
             draggable={false}
+            key={`gallery-img-${safeCurrentIndex}`} // Force le re-render pour chaque image
           />
         </div>
 
@@ -138,6 +170,7 @@ const ImageGallery = ({ images, initialIndex = 0, onClose }) => {
               className="nav-button nav-previous" 
               onClick={goToPrevious}
               disabled={isLoading}
+              type="button"
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <polyline points="15,18 9,12 15,6" stroke="white" strokeWidth="2"/>
@@ -148,6 +181,7 @@ const ImageGallery = ({ images, initialIndex = 0, onClose }) => {
               className="nav-button nav-next" 
               onClick={goToNext}
               disabled={isLoading}
+              type="button"
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <polyline points="9,18 15,12 9,6" stroke="white" strokeWidth="2"/>
@@ -161,8 +195,8 @@ const ImageGallery = ({ images, initialIndex = 0, onClose }) => {
           <div className="gallery-thumbnails">
             {images.map((image, index) => (
               <div
-                key={index}
-                className={`thumbnail ${index === currentIndex ? 'active' : ''}`}
+                key={`thumb-${index}`}
+                className={`thumbnail ${index === safeCurrentIndex ? 'active' : ''}`}
                 onClick={() => {
                   setCurrentIndex(index);
                   setIsLoading(true);
@@ -172,6 +206,10 @@ const ImageGallery = ({ images, initialIndex = 0, onClose }) => {
                   src={image}
                   alt={`Miniature ${index + 1}`}
                   draggable={false}
+                  onError={(e) => {
+                    console.warn(`Erreur de chargement de la miniature ${index}:`, image);
+                    // Ne pas cacher la miniature, juste logger l'erreur
+                  }}
                 />
               </div>
             ))}
@@ -179,9 +217,11 @@ const ImageGallery = ({ images, initialIndex = 0, onClose }) => {
         )}
 
         {/* Indicateurs de swipe pour mobile */}
-        <div className="swipe-indicator left">
-          <span>Glisser pour naviguer</span>
-        </div>
+        {images.length > 1 && (
+          <div className="swipe-indicator">
+            <span>Glisser pour naviguer</span>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
-// client/src/App.js - Version complète corrigée pour le filtrage par service
-import React, { useState, useEffect, Suspense } from 'react';
+// client/src/App.js - Version complète corrigée pour le filtrage par service et useCallback
+import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
 import './styles/index.css';
 import Header from './components/layout/Header';
@@ -58,6 +58,29 @@ function App() {
     role: 'Invité'
   };
 
+  // CORRECTION: Fonctions de gestion avec useCallback pour éviter les re-renders
+  const handleAuthFormChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setAuthForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  }, []);
+
+  const handleTabChange = useCallback((tabId) => {
+    console.log(`Onglet sélectionné: ${tabId}`);
+    setActiveTab(tabId);
+  }, []);
+
+  const handleSearch = useCallback((value) => {
+    setSearchQuery(value);
+  }, []);
+
+  const handleOpenLoginModal = useCallback((isRegister) => {
+    setShowLoginModal(true);
+    setIsRegistering(isRegister);
+  }, []);
+
   // Charger l'utilisateur et les posts au démarrage
   useEffect(() => {
     const loadInitialData = async () => {
@@ -106,7 +129,7 @@ function App() {
     loadInitialData();
   }, []);
 
-  // Effet pour filtrer les posts - LOGIQUE CORRIGÉE
+  // Effet pour filtrer les posts - LOGIQUE CORRIGÉE POUR L'ÉPINGLAGE
   useEffect(() => {
     const loadPostsForTab = async () => {
       let filtered = [];
@@ -168,21 +191,25 @@ function App() {
           );
         }
       } else {
-        // Logique existante pour les autres onglets
+        // CORRECTION: Logique pour les services - inclut TOUS les posts du service
         console.log("Services disponibles dans les posts:");
         posts.forEach(post => {
           console.log(`- Post ${post._id}: service="${post.service}", category="${post.category}"`);
         });
         
-        // Filtrer par service OU category (pour compatibilité)
-        filtered = posts.filter(post => {
-          const postService = post.service || post.category;
-          const matches = postService === activeTab;
-          if (matches) {
-            console.log(`✅ Post ${post._id} correspond au service "${activeTab}"`);
-          }
-          return matches;
-        });
+        // Récupérer tous les posts du service (épinglés ET normaux)
+        try {
+          const res = await api.get(`/posts/service/${activeTab}`);
+          filtered = res.data;
+          console.log(`Posts récupérés pour le service "${activeTab}":`, filtered.length);
+        } catch (error) {
+          console.error(`Erreur lors du chargement des posts du service "${activeTab}":`, error);
+          // Fallback vers le filtrage local
+          filtered = posts.filter(post => {
+            const postService = post.service || post.category;
+            return postService === activeTab;
+          });
+        }
         
         console.log(`Posts trouvés pour le service "${activeTab}":`, filtered.length);
       }
@@ -210,23 +237,26 @@ function App() {
 
   // Fonction de succès OAuth
   const handleOAuthSuccess = (user) => {
+    console.log('🔍 App.js - OAuth Success reçu:', user);
+    
+    // Mettre à jour l'état de l'application
     setCurrentUser(user);
     setIsLoggedIn(true);
     setShowLoginModal(false);
-    console.log('Utilisateur OAuth connecté:', user);
+    
+    console.log("✅ État de l'application mis à jour");
+    console.log('✅ Utilisateur OAuth connecté:', user.email);
+    
+    // Forcer un rafraîchissement de la page pour s'assurer que tout est synchronisé
+    setTimeout(() => {
+      console.log('🔄 Rafraîchissement de la page pour synchronisation...');
+      window.location.reload();
+    }, 1000);
   };
-
-  // Gestion du formulaire d'authentification
-  const handleAuthFormChange = (e) => {
-    const { name, value } = e.target;
-    setAuthForm(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+  
 
   // Fonction d'inscription
-  const handleRegister = async (e) => {
+  const handleRegister = useCallback(async (e) => {
     e.preventDefault();
     
     if (authForm.password !== authForm.confirmPassword) {
@@ -267,10 +297,10 @@ function App() {
       console.error("Erreur lors de l'inscription:", err);
       alert(err.response?.data?.message || "Une erreur est survenue lors de l'inscription");
     }
-  };
+  }, [authForm]);
 
   // Fonction de connexion
-  const handleLogin = async (e) => {
+  const handleLogin = useCallback(async (e) => {
     e.preventDefault();
     
     if (!authForm.email || !authForm.password) {
@@ -302,10 +332,10 @@ function App() {
       console.error("Erreur lors de la connexion:", err);
       alert(err.response?.data?.message || "Identifiants invalides");
     }
-  };
+  }, [authForm]);
 
   // Fonction de déconnexion
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     const isOAuth = oauthService.isOAuthUser();
     
     if (isOAuth) {
@@ -316,17 +346,15 @@ function App() {
       setIsLoggedIn(false);
       setShowAdminPanel(false);
     }
-  };
+  }, []);
 
   // Gestion des fichiers pour la création de post
-  const handleFileChange = (e) => {
+  const handleFileChange = useCallback((e) => {
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
       
       // Limiter à 4 images pour les photos
       const imageFiles = filesArray.filter(file => file.type.startsWith('image/'));
-      // eslint-disable-next-line no-unused-vars
-      const otherFiles = filesArray.filter(file => !file.type.startsWith('image/'));
       
       const currentImageCount = selectedFiles.filter(file => file.type.startsWith('image/')).length;
       
@@ -362,9 +390,9 @@ function App() {
       
       setFilePreviewUrls([...filePreviewUrls, ...newFileUrls]);
     }
-  };
+  }, [selectedFiles, filePreviewUrls]);
 
-  const removeFile = (index) => {
+  const removeFile = useCallback((index) => {
     const newFiles = [...selectedFiles];
     const newUrls = [...filePreviewUrls];
     
@@ -375,10 +403,10 @@ function App() {
     
     setSelectedFiles(newFiles);
     setFilePreviewUrls(newUrls);
-  };
+  }, [selectedFiles, filePreviewUrls]);
 
   // Création d'un nouveau post - LOGIQUE CORRIGÉE
-  const handleCreatePost = async () => {
+  const handleCreatePost = useCallback(async () => {
     if (!newPostContent.trim() && selectedFiles.length === 0) return;
     
     try {
@@ -438,7 +466,7 @@ function App() {
       console.error("Erreur lors de la création du post:", err);
       alert("Une erreur est survenue lors de la création du post");
     }
-  };
+  }, [newPostContent, selectedFiles, postService, currentUser, shouldPinPost, pinLocations, posts]);
 
   // Rendu de la barre latérale
   const renderSidebar = () => {
@@ -681,50 +709,50 @@ function App() {
             </div>
 
             {isUserAdmin && (
-  <div className="pin-options">
-    <label className="pin-checkbox">
-      <input
-        type="checkbox"
-        checked={shouldPinPost}
-        onChange={(e) => setShouldPinPost(e.target.checked)}
-      />
-      <span>Épingler ce post</span>
-    </label>
-    
-    {shouldPinPost && (
-      <div className="pin-locations-select">
-        <label className="pin-location-label">
-          <input
-            type="checkbox"
-            checked={pinLocations.includes('general')}
-            onChange={(e) => {
-              if (e.target.checked) {
-                setPinLocations([...pinLocations, 'general']);
-              } else {
-                setPinLocations(pinLocations.filter(loc => loc !== 'general'));
-              }
-            }}
-          />
-          <span>Épingler dans Général</span>
-        </label>
-        <label className="pin-location-label">
-          <input
-            type="checkbox"
-            checked={pinLocations.includes('service')}
-            onChange={(e) => {
-              if (e.target.checked) {
-                setPinLocations([...pinLocations, 'service']);
-              } else {
-                setPinLocations(pinLocations.filter(loc => loc !== 'service'));
-              }
-            }}
-          />
-          <span>Épingler dans {formatDepartmentName(postService)}</span>
-        </label>
-      </div>
-    )}
-  </div>
-)}
+              <div className="pin-options">
+                <label className="pin-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={shouldPinPost}
+                    onChange={(e) => setShouldPinPost(e.target.checked)}
+                  />
+                  <span>Épingler ce post</span>
+                </label>
+                
+                {shouldPinPost && (
+                  <div className="pin-locations-select">
+                    <label className="pin-location-label">
+                      <input
+                        type="checkbox"
+                        checked={pinLocations.includes('general')}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setPinLocations([...pinLocations, 'general']);
+                          } else {
+                            setPinLocations(pinLocations.filter(loc => loc !== 'general'));
+                          }
+                        }}
+                      />
+                      <span>Épingler dans Général</span>
+                    </label>
+                    <label className="pin-location-label">
+                      <input
+                        type="checkbox"
+                        checked={pinLocations.includes('service')}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setPinLocations([...pinLocations, 'service']);
+                          } else {
+                            setPinLocations(pinLocations.filter(loc => loc !== 'service'));
+                          }
+                        }}
+                      />
+                      <span>Épingler dans {formatDepartmentName(postService)}</span>
+                    </label>
+                  </div>
+                )}
+              </div>
+            )}
             
             <textarea
               placeholder="Que voulez-vous partager ?"
@@ -1027,17 +1055,43 @@ function App() {
     );
   }
 
-  const handleOpenLoginModal = (isRegister) => {
-    setShowLoginModal(true);
-    setIsRegistering(isRegister);
-  };
-
   // Composant de callback OAuth pour React Router v5
-  const OAuthCallbackComponent = () => (
-    <Suspense fallback={<div>Chargement de l'authentification...</div>}>
-      <OAuthCallback onAuthSuccess={handleOAuthSuccess} />
-    </Suspense>
-  );
+  const OAuthCallbackComponent = () => {
+    console.log('🔍 OAuthCallbackComponent monté');
+    
+    return (
+      <Suspense fallback={
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          backgroundColor: '#f6f8fa'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '10px',
+            padding: '40px',
+            textAlign: 'center',
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)'
+          }}>
+            <div style={{
+              width: '50px',
+              height: '50px',
+              border: '4px solid #f3f3f3',
+              borderTop: '4px solid #0078d4',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto 20px'
+            }}></div>
+            <h2>Chargement de l'authentification...</h2>
+          </div>
+        </div>
+      }>
+        <OAuthCallback onAuthSuccess={handleOAuthSuccess} />
+      </Suspense>
+    );
+  };
 
   // Composant principal pour React Router v5
   const MainComponent = () => (
@@ -1053,8 +1107,8 @@ function App() {
           <>
             {/* Utiliser le composant Header */}
             <Header 
-              onTabChange={setActiveTab} 
-              onSearch={setSearchQuery}
+              onTabChange={handleTabChange} 
+              onSearch={handleSearch}
             />
             
             {/* Section utilisateur/authentification */}
@@ -1113,60 +1167,54 @@ function App() {
               )}
             </div>
             
-            <div className="announcement">
-              <span className="announcement-title">Information du 20 mars : </span>
-              Aujourd'hui, nous souhaitons un bon anniversaire à Delphine, Xavier et Matthieu !
-              <span role="img" aria-label="Confetti">🎉</span>
-            </div>
-            
             <div className="feed">
               {/* AFFICHAGE CONDITIONNEL AMÉLIORÉ avec EmptyState moderne */}
               {activeTab === 'general' && filteredPosts.length === 0 ? (
-  // Section Général - État vide si aucun post épinglé
-  <EmptyState 
-    type="general"
-    isLoggedIn={isLoggedIn}
-    currentUserService={currentUser?.service}
-    onCreatePost={() => {
-      if (currentUser?.service && currentUser.service !== 'general') {
-        setPostService(currentUser.service);
-      } else {
-        setPostService('general');
-      }
-      setShowCreatePostModal(true);
-    }}
-  />
-) : activeTab === 'general' ? (
-  // Afficher les posts épinglés dans général
-  filteredPosts.map(post => (
-    <Post 
-      key={post._id || post.id} 
-      post={preparePostData(post)} 
-      currentUser={currentUser}
-    />
-  ))
-) : filteredPosts.length > 0 ? (
-  // Afficher les posts filtrés
-  filteredPosts.map(post => (
-    <Post 
-      key={post._id || post.id} 
-      post={preparePostData(post)} 
-      currentUser={currentUser}
-    />
-  ))
-) : (
-  // Aucun post trouvé - État vide
-  <EmptyState 
-    type={searchQuery.trim() !== '' ? 'search' : activeTab}
-    searchQuery={searchQuery}
-    isLoggedIn={isLoggedIn}
-    currentUserService={currentUser?.service}
-    onCreatePost={() => {
-      setPostService(activeTab);
-      setShowCreatePostModal(true);
-    }}
-  />
-)}
+                // Section Général - État vide si aucun post épinglé
+                <EmptyState 
+                  type="general"
+                  isLoggedIn={isLoggedIn}
+                  currentUserService={currentUser?.service}
+                  onCreatePost={() => {
+                    if (currentUser?.service && currentUser.service !== 'general') {
+                      setPostService(currentUser.service);
+                    } else {
+                      setPostService('general');
+                    }
+                    setShowCreatePostModal(true);
+                  }}
+                />
+              ) : activeTab === 'general' ? (
+                // Afficher les posts épinglés dans général
+                filteredPosts.map(post => (
+                  <Post 
+                    key={post._id || post.id} 
+                    post={preparePostData(post)} 
+                    currentUser={currentUser}
+                  />
+                ))
+              ) : filteredPosts.length > 0 ? (
+                // Afficher les posts filtrés
+                filteredPosts.map(post => (
+                  <Post 
+                    key={post._id || post.id} 
+                    post={preparePostData(post)} 
+                    currentUser={currentUser}
+                  />
+                ))
+              ) : (
+                // Aucun post trouvé - État vide
+                <EmptyState 
+                  type={searchQuery.trim() !== '' ? 'search' : activeTab}
+                  searchQuery={searchQuery}
+                  isLoggedIn={isLoggedIn}
+                  currentUserService={currentUser?.service}
+                  onCreatePost={() => {
+                    setPostService(activeTab);
+                    setShowCreatePostModal(true);
+                  }}
+                />
+              )}
             </div>
           </>
         )}
