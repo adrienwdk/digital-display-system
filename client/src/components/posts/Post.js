@@ -1,4 +1,4 @@
-// client/src/components/posts/Post.js - Version simplifiée sans erreurs
+// client/src/components/posts/Post.js - Version corrigée sans warnings ESLint
 import React, { useState, useEffect } from 'react';
 import ImageGallery from './ImageGallery';
 import Avatar from '../ui/Avatar';
@@ -15,7 +15,6 @@ const Post = ({ post, currentUser }) => {
   // États pour les réactions
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [showReactionDetails, setShowReactionDetails] = useState(false);
-  const [activeReactionTab, setActiveReactionTab] = useState('all');
   const [isExpanded, setIsExpanded] = useState(false);
   
   const [reactions, setReactions] = useState(post.reactions || {
@@ -171,8 +170,8 @@ const Post = ({ post, currentUser }) => {
 
   const getTopReactions = () => {
     return Object.entries(reactions)
-      .filter(([_, reaction]) => reaction.count > 0)
-      .sort(([_, a], [__, b]) => b.count - a.count)
+      .filter(([, reaction]) => reaction.count > 0)
+      .sort(([, a], [, b]) => b.count - a.count)
       .slice(0, 3);
   };
 
@@ -280,7 +279,7 @@ const Post = ({ post, currentUser }) => {
             >
               <img 
                 src={imageUrl} 
-                alt={`Image ${index + 1} du post`}
+                alt={`Contenu ${index + 1} du post`}
                 className="post-image"
                 style={{
                   width: '100%',
@@ -289,12 +288,12 @@ const Post = ({ post, currentUser }) => {
                   display: 'block'
                 }}
                 onError={(e) => {
-                  console.error(`❌ Erreur image ${index}:`, imageUrl);
+                  console.error(`❌ Erreur contenu ${index}:`, imageUrl);
                   e.target.onerror = null;
-                  e.target.src = 'https://via.placeholder.com/300x200?text=Image+non+disponible';
+                  e.target.src = 'https://via.placeholder.com/300x200?text=Contenu+non+disponible';
                 }}
                 onLoad={() => {
-                  console.log(`✅ Image ${index} chargée:`, imageUrl);
+                  console.log(`✅ Contenu ${index} chargé:`, imageUrl);
                 }}
               />
               <div className="image-overlay">
@@ -350,9 +349,16 @@ const Post = ({ post, currentUser }) => {
               />
             )}
             
-            {/* Post épinglé */}
+            {/* Post épinglé - EMOJI CORRIGÉ */}
             {post.isPinned && (
-              <span className="pinned-indicator" title="Post épinglé">📌</span>
+              <span 
+                className="pinned-indicator" 
+                title="Post épinglé"
+                role="img" 
+                aria-label="Post épinglé"
+              >
+                📌
+              </span>
             )}
             
             {/* Badge de service */}
