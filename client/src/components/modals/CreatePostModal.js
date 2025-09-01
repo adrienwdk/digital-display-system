@@ -14,16 +14,7 @@ const CreatePostModal = ({
   onCreatePost,
   formatDepartmentName
 }) => {
-  if (!isOpen) return null;
-
-  const authorData = currentUser || {
-    firstName: 'Visiteur',
-    lastName: '',
-    role: 'Invité'
-  };
-
-  const isUserAdmin = currentUser?.isAdmin;
-
+  // All hooks must be called before any conditional returns
   const formatFileSize = useCallback((bytes) => {
     if (bytes < 1024) return bytes + ' B';
     else if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -75,6 +66,17 @@ const CreatePostModal = ({
       onPostFormChange('pinLocations', locations.filter(loc => loc !== location));
     }
   }, [postForm.pinLocations, onPostFormChange]);
+
+  // Now the conditional return comes after all hooks
+  if (!isOpen) return null;
+
+  const authorData = currentUser || {
+    firstName: 'Visiteur',
+    lastName: '',
+    role: 'Invité'
+  };
+
+  const isUserAdmin = currentUser?.isAdmin;
 
   return (
     <div className="modal-overlay">
