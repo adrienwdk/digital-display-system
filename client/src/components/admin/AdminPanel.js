@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect, memo, useCallback } from 'react';
 import api from '../../services/api';
 import { useStableForm } from '../../hooks/useStableForm';
 import StableInput from '../ui/StableInput';
@@ -6,13 +6,32 @@ import StableSelect from '../ui/StableSelect';
 import StableTextarea from '../ui/StableTextarea';
 import './AdminPanel.css';
 
-// Composant pour les filtres des posts
+// Composant pour les filtres des posts - CORRECTION du bug
 const PostsFilters = memo(({ filters, onFiltersChange }) => {
-  const { values, handleChange } = useStableForm(filters);
+  const { values, handleChange, setValues } = useStableForm(filters);
+  
+  // CORRECTION: Synchroniser les valeurs avec les props quand elles changent
+  useEffect(() => {
+    setValues(filters);
+  }, [filters, setValues]);
+  
+  // CORRECTION: Debounce pour éviter trop d'appels
+  const [debouncedValues, setDebouncedValues] = useState(values);
   
   useEffect(() => {
-    onFiltersChange(values);
-  }, [values, onFiltersChange]);
+    const timer = setTimeout(() => {
+      setDebouncedValues(values);
+    }, 300); // Délai de 300ms pour la recherche
+    
+    return () => clearTimeout(timer);
+  }, [values]);
+  
+  // Notifier le parent seulement quand les valeurs debouncées changent
+  useEffect(() => {
+    if (onFiltersChange && debouncedValues !== filters) {
+      onFiltersChange(debouncedValues);
+    }
+  }, [debouncedValues, onFiltersChange, filters]);
 
   return (
     <div className="posts-filters">
@@ -111,7 +130,7 @@ const AdminPanel = () => {
   const [imageModal, setImageModal] = useState(null);
   const [pinnedPosts, setPinnedPosts] = useState([]);
   
-  // États pour la gestion de tous les posts
+  // États pour la gestion de tous les posts - CORRECTION
   const [postsFilter, setPostsFilter] = useState({
     status: 'all',
     service: 'all',
@@ -119,6 +138,15 @@ const AdminPanel = () => {
     page: 1
   });
   const [postsPagination, setPostsPagination] = useState(null);
+
+  // CORRECTION: Fonction de gestion des filtres avec useCallback
+  const handleFiltersChange = useCallback((newFilters) => {
+    console.log('Nouveaux filtres:', newFilters);
+    setPostsFilter(prev => ({
+      ...newFilters,
+      page: 1 // Toujours remettre à la page 1 lors d'un changement de filtre
+    }));
+  }, []);
 
   // Charger les données en fonction de l'onglet actif
   useEffect(() => {
@@ -130,12 +158,13 @@ const AdminPanel = () => {
           setPendingPosts(res.data);
         } else if (activeTab === 'allPosts') {
           const params = new URLSearchParams({
-            page: postsFilter.page,
-            limit: 20,
+            page: postsFilter.page.toString(),
+            limit: '20',
             status: postsFilter.status,
             service: postsFilter.service,
             search: postsFilter.search
           });
+          console.log('Paramètres de requête:', params.toString());
           const res = await api.get(`/admin/posts?${params}`);
           setAllPosts(res.data.posts);
           setPostsPagination(res.data.pagination);
@@ -159,7 +188,7 @@ const AdminPanel = () => {
     };
 
     loadData();
-  }, [activeTab, postsFilter]);
+  }, [activeTab, postsFilter]); // Dépendance sur postsFilter
 
   // Fonction pour approuver un post
   const handleApprovePost = async (postId) => {
@@ -399,18 +428,22 @@ const AdminPanel = () => {
     ));
   };
 
-  // Rendu de tous les posts avec filtres
+  // Rendu de tous les posts avec filtres - CORRECTION
   const renderAllPosts = () => {
     return (
       <div className="all-posts-section">
         {/* Filtres */}
         <PostsFilters
           filters={postsFilter}
-          onFiltersChange={(newFilters) => setPostsFilter({ ...newFilters, page: 1 })}
+          onFiltersChange={handleFiltersChange}
         />
         
         {/* Liste des posts */}
-        {allPosts.length === 0 ? (
+        {loading ? (
+          <div className="loading" style={{ textAlign: 'center', padding: '2rem' }}>
+            Chargement des posts...
+          </div>
+        ) : allPosts.length === 0 ? (
           <p className="no-items">Aucun post trouvé avec ces critères.</p>
         ) : (
           allPosts.map(post => (
@@ -521,14 +554,14 @@ const AdminPanel = () => {
           <div className="pagination">
             <button
               disabled={postsPagination.page === 1}
-              onClick={() => setPostsFilter({ ...postsFilter, page: postsPagination.page - 1 })}
+              onClick={() => setPostsFilter(prev => ({ ...prev, page: postsPagination.page - 1 }))}
             >
               Précédent
             </button>
             <span>Page {postsPagination.page} sur {postsPagination.pages}</span>
             <button
               disabled={postsPagination.page === postsPagination.pages}
-              onClick={() => setPostsFilter({ ...postsFilter, page: postsPagination.page + 1 })}
+              onClick={() => setPostsFilter(prev => ({ ...prev, page: postsPagination.page + 1 }))}
             >
               Suivant
             </button>

@@ -1,4 +1,4 @@
-// client/src/App.js - Version corrigée pour éviter les re-renders du modal
+// client/src/App.js - Version corrigée complète
 import React, { useState, useEffect, Suspense, useCallback, useMemo } from 'react';
 import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
 import './styles/index.css';
@@ -10,10 +10,8 @@ import AdminPanel from './components/admin/AdminPanel';
 import Post from './components/posts/Post';
 import oauthService from './services/oauthService';
 import CreatePostModal from './components/modals/CreatePostModal';
-import { useStableForm } from './hooks/useStableForm';
 import StableInput from './components/ui/StableInput';
 import StableSelect from './components/ui/StableSelect';
-
 
 // Import dynamique des composants OAuth
 const OAuthCallback = React.lazy(() => import('./components/auth/OAuthCallback'));
@@ -597,39 +595,16 @@ function App() {
     formatDepartmentName
   ]);
 
-  const AuthModalComponent = memo(({ 
-    isRegistering, 
-    onClose, 
-    onRegister, 
-    onLogin, 
-    onOAuthSuccess 
-  }) => {
-    const { values, handleChange, reset } = useStableForm({
-      firstName: '',
-      lastName: '',
-      email: '',
-      role: '',
-      service: '',
-      password: '',
-      confirmPassword: ''
-    });
-  
-    const handleSubmitRegister = (e) => {
-      e.preventDefault();
-      onRegister(values);
-    };
-  
-    const handleSubmitLogin = (e) => {
-      e.preventDefault();
-      onLogin(values);
-    };
-  
+  // Modal d'authentification rendu - CORRECTION
+  const renderAuthModal = useMemo(() => {
+    if (!showLoginModal) return null;
+
     return (
       <div className="modal-overlay">
         <div className="modal-content auth-modal">
           <div className="modal-header">
             <h2>{isRegistering ? 'Créer un compte' : 'Connexion'}</h2>
-            <button className="close-button" onClick={onClose}>
+            <button className="close-button" onClick={handleCloseLoginModal}>
               &times;
             </button>
           </div>
@@ -637,7 +612,7 @@ function App() {
           <div className="modal-body">
             <Suspense fallback={<div>Chargement...</div>}>
               <OAuthLogin 
-                onSuccess={onOAuthSuccess}
+                onSuccess={handleOAuthSuccess}
                 onError={(error) => {
                   console.error('Erreur OAuth:', error);
                   alert('Erreur lors de la connexion OAuth: ' + error);
@@ -646,15 +621,16 @@ function App() {
             </Suspense>
             
             {isRegistering ? (
-              <form onSubmit={handleSubmitRegister}>
+              <form onSubmit={handleRegister}>
                 <div className="form-group-row">
                   <div className="form-group">
                     <label htmlFor="firstName">Prénom</label>
                     <StableInput
                       type="text"
                       id="firstName"
-                      value={values.firstName}
-                      onChange={handleChange('firstName')}
+                      name="firstName"
+                      value={authForm.firstName}
+                      onChange={handleAuthFormChange}
                       required
                     />
                   </div>
@@ -664,8 +640,9 @@ function App() {
                     <StableInput
                       type="text"
                       id="lastName"
-                      value={values.lastName}
-                      onChange={handleChange('lastName')}
+                      name="lastName"
+                      value={authForm.lastName}
+                      onChange={handleAuthFormChange}
                       required
                     />
                   </div>
@@ -676,8 +653,9 @@ function App() {
                   <StableInput
                     type="email"
                     id="email"
-                    value={values.email}
-                    onChange={handleChange('email')}
+                    name="email"
+                    value={authForm.email}
+                    onChange={handleAuthFormChange}
                     required
                   />
                 </div>
@@ -687,8 +665,9 @@ function App() {
                   <StableInput
                     type="text"
                     id="role"
-                    value={values.role}
-                    onChange={handleChange('role')}
+                    name="role"
+                    value={authForm.role}
+                    onChange={handleAuthFormChange}
                     required
                     placeholder="Ex: Développeur, Manager, Consultant..."
                   />
@@ -698,8 +677,9 @@ function App() {
                   <label htmlFor="service">Service</label>
                   <StableSelect
                     id="service"
-                    value={values.service}
-                    onChange={handleChange('service')}
+                    name="service"
+                    value={authForm.service}
+                    onChange={handleAuthFormChange}
                     className="service-select"
                     required
                   >
@@ -720,8 +700,9 @@ function App() {
                   <StableInput
                     type="password"
                     id="password"
-                    value={values.password}
-                    onChange={handleChange('password')}
+                    name="password"
+                    value={authForm.password}
+                    onChange={handleAuthFormChange}
                     required
                   />
                 </div>
@@ -731,8 +712,9 @@ function App() {
                   <StableInput
                     type="password"
                     id="confirmPassword"
-                    value={values.confirmPassword}
-                    onChange={handleChange('confirmPassword')}
+                    name="confirmPassword"
+                    value={authForm.confirmPassword}
+                    onChange={handleAuthFormChange}
                     required
                   />
                 </div>
@@ -740,14 +722,15 @@ function App() {
                 <button type="submit" className="auth-submit-button">S'inscrire</button>
               </form>
             ) : (
-              <form onSubmit={handleSubmitLogin}>
+              <form onSubmit={handleLogin}>
                 <div className="form-group">
                   <label htmlFor="email">Email</label>
                   <StableInput
                     type="email"
                     id="email"
-                    value={values.email}
-                    onChange={handleChange('email')}
+                    name="email"
+                    value={authForm.email}
+                    onChange={handleAuthFormChange}
                     required
                   />
                 </div>
@@ -757,8 +740,9 @@ function App() {
                   <StableInput
                     type="password"
                     id="password"
-                    value={values.password}
-                    onChange={handleChange('password')}
+                    name="password"
+                    value={authForm.password}
+                    onChange={handleAuthFormChange}
                     required
                   />
                 </div>
@@ -778,7 +762,7 @@ function App() {
         </div>
       </div>
     );
-  });
+  }, [showLoginModal, isRegistering, authForm, handleCloseLoginModal, handleOAuthSuccess, handleRegister, handleLogin, handleAuthFormChange]);
 
   // ========== RENDU PRINCIPAL ==========
 

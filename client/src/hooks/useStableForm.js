@@ -22,8 +22,13 @@ export const useStableForm = (initialValues = {}) => {
     setValues(initialValues);
   }, [initialValues]);
   
-  const setValues = useCallback((newValues) => {
-    setValues(newValues);
+  // CORRECTION: Renommer la fonction pour éviter le conflit avec setValues de React
+  const updateValues = useCallback((newValues) => {
+    if (typeof newValues === 'function') {
+      setValues(newValues);
+    } else {
+      setValues(newValues);
+    }
   }, []);
   
   return {
@@ -31,6 +36,6 @@ export const useStableForm = (initialValues = {}) => {
     handleChange,
     setValue,
     reset,
-    setValues
+    setValues: updateValues // Exposer sous le nom setValues pour la compatibilité
   };
 };
