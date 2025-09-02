@@ -1,6 +1,103 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import api from '../../services/api';
+import { useStableForm } from '../../hooks/useStableForm';
+import StableInput from '../ui/StableInput';
+import StableSelect from '../ui/StableSelect';
+import StableTextarea from '../ui/StableTextarea';
 import './AdminPanel.css';
+
+// Composant pour les filtres des posts
+const PostsFilters = memo(({ filters, onFiltersChange }) => {
+  const { values, handleChange } = useStableForm(filters);
+  
+  useEffect(() => {
+    onFiltersChange(values);
+  }, [values, onFiltersChange]);
+
+  return (
+    <div className="posts-filters">
+      <StableSelect
+        value={values.status}
+        onChange={handleChange('status')}
+        className="filter-select"
+      >
+        <option value="all">Tous les statuts</option>
+        <option value="pending">En attente</option>
+        <option value="approved">Approuvés</option>
+        <option value="rejected">Rejetés</option>
+      </StableSelect>
+      
+      <StableSelect
+        value={values.service}
+        onChange={handleChange('service')}
+        className="filter-select"
+      >
+        <option value="all">Tous les services</option>
+        <option value="general">Général</option>
+        <option value="rh">RH</option>
+        <option value="commerce">Commerce</option>
+        <option value="marketing">Marketing</option>
+        <option value="informatique">Informatique</option>
+        <option value="achat">Achat</option>
+        <option value="comptabilité">Comptabilité</option>
+        <option value="logistique">Logistique</option>
+      </StableSelect>
+      
+      <StableInput
+        type="text"
+        placeholder="Rechercher..."
+        value={values.search}
+        onChange={handleChange('search')}
+        className="filter-search"
+      />
+    </div>
+  );
+});
+
+// Composant pour l'édition des posts
+const PostEditForm = memo(({ post, onSave, onCancel }) => {
+  const { values, handleChange } = useStableForm({
+    content: post.content || '',
+    service: post.service || 'general'
+  });
+
+  const handleSubmit = () => {
+    onSave(values);
+  };
+
+  return (
+    <div className="edit-form">
+      <StableTextarea
+        value={values.content}
+        onChange={handleChange('content')}
+        className="edit-textarea"
+        rows="4"
+      />
+      <StableSelect
+        value={values.service}
+        onChange={handleChange('service')}
+        className="edit-select"
+      >
+        <option value="general">Général</option>
+        <option value="rh">RH</option>
+        <option value="commerce">Commerce</option>
+        <option value="marketing">Marketing</option>
+        <option value="informatique">Informatique</option>
+        <option value="achat">Achat</option>
+        <option value="comptabilité">Comptabilité</option>
+        <option value="logistique">Logistique</option>
+      </StableSelect>
+      <div className="edit-actions">
+        <button className="save-button" onClick={handleSubmit}>
+          Sauvegarder
+        </button>
+        <button className="cancel-button" onClick={onCancel}>
+          Annuler
+        </button>
+      </div>
+    </div>
+  );
+});
 
 const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState('pending');
@@ -11,7 +108,6 @@ const AdminPanel = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editingPost, setEditingPost] = useState(null);
-  const [editForm, setEditForm] = useState({ content: '', service: '' });
   const [imageModal, setImageModal] = useState(null);
   const [pinnedPosts, setPinnedPosts] = useState([]);
   
@@ -91,14 +187,10 @@ const AdminPanel = () => {
   // Fonction pour commencer l'édition d'un post
   const handleEditPost = (post) => {
     setEditingPost(post._id);
-    setEditForm({
-      content: post.content,
-      service: post.service
-    });
   };
 
   // Fonction pour sauvegarder les modifications
-  const handleSaveEdit = async (postId) => {
+  const handleSaveEdit = async (postId, editForm) => {
     try {
       await api.put(`/posts/${postId}/edit`, editForm);
       
@@ -109,8 +201,13 @@ const AdminPanel = () => {
           : post
       ));
       
+      setAllPosts(allPosts.map(post => 
+        post._id === postId 
+          ? { ...post, content: editForm.content, service: editForm.service }
+          : post
+      ));
+      
       setEditingPost(null);
-      setEditForm({ content: '', service: '' });
     } catch (err) {
       console.error("Erreur lors de la modification du post:", err);
       setError("Erreur lors de la modification du post");
@@ -120,7 +217,6 @@ const AdminPanel = () => {
   // Fonction pour annuler l'édition
   const handleCancelEdit = () => {
     setEditingPost(null);
-    setEditForm({ content: '', service: '' });
   };
 
   // Fonction pour ouvrir le modal d'image
@@ -170,6 +266,7 @@ const AdminPanel = () => {
       setError("Erreur lors du changement de statut");
     }
   };
+
   const handlePromoteUser = async (userId) => {
     try {
       const response = await api.put(`/admin/users/${userId}/promote`);
@@ -236,42 +333,11 @@ const AdminPanel = () => {
         
         <div className="card-content">
           {editingPost === post._id ? (
-            <div className="edit-form">
-              <textarea
-                value={editForm.content}
-                onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
-                className="edit-textarea"
-                rows="4"
-              />
-              <select
-                value={editForm.service}
-                onChange={(e) => setEditForm({ ...editForm, service: e.target.value })}
-                className="edit-select"
-              >
-                <option value="general">Général</option>
-                <option value="rh">RH</option>
-                <option value="commerce">Commerce</option>
-                <option value="marketing">Marketing</option>
-                <option value="informatique">Informatique</option>
-                <option value="achat">Achat</option>
-                <option value="comptabilité">Comptabilité</option>
-                <option value="logistique">Logistique</option>
-              </select>
-              <div className="edit-actions">
-                <button 
-                  className="save-button"
-                  onClick={() => handleSaveEdit(post._id)}
-                >
-                  Sauvegarder
-                </button>
-                <button 
-                  className="cancel-button"
-                  onClick={handleCancelEdit}
-                >
-                  Annuler
-                </button>
-              </div>
-            </div>
+            <PostEditForm
+              post={post}
+              onSave={(editForm) => handleSaveEdit(post._id, editForm)}
+              onCancel={handleCancelEdit}
+            />
           ) : (
             <>
               <p>{post.content}</p>
@@ -338,42 +404,10 @@ const AdminPanel = () => {
     return (
       <div className="all-posts-section">
         {/* Filtres */}
-        <div className="posts-filters">
-          <select
-            value={postsFilter.status}
-            onChange={(e) => setPostsFilter({ ...postsFilter, status: e.target.value, page: 1 })}
-            className="filter-select"
-          >
-            <option value="all">Tous les statuts</option>
-            <option value="pending">En attente</option>
-            <option value="approved">Approuvés</option>
-            <option value="rejected">Rejetés</option>
-          </select>
-          
-          <select
-            value={postsFilter.service}
-            onChange={(e) => setPostsFilter({ ...postsFilter, service: e.target.value, page: 1 })}
-            className="filter-select"
-          >
-            <option value="all">Tous les services</option>
-            <option value="general">Général</option>
-            <option value="rh">RH</option>
-            <option value="commerce">Commerce</option>
-            <option value="marketing">Marketing</option>
-            <option value="informatique">Informatique</option>
-            <option value="achat">Achat</option>
-            <option value="comptabilité">Comptabilité</option>
-            <option value="logistique">Logistique</option>
-          </select>
-          
-          <input
-            type="text"
-            placeholder="Rechercher..."
-            value={postsFilter.search}
-            onChange={(e) => setPostsFilter({ ...postsFilter, search: e.target.value, page: 1 })}
-            className="filter-search"
-          />
-        </div>
+        <PostsFilters
+          filters={postsFilter}
+          onFiltersChange={(newFilters) => setPostsFilter({ ...newFilters, page: 1 })}
+        />
         
         {/* Liste des posts */}
         {allPosts.length === 0 ? (
@@ -403,42 +437,11 @@ const AdminPanel = () => {
               
               <div className="card-content">
                 {editingPost === post._id ? (
-                  <div className="edit-form">
-                    <textarea
-                      value={editForm.content}
-                      onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
-                      className="edit-textarea"
-                      rows="4"
-                    />
-                    <select
-                      value={editForm.service}
-                      onChange={(e) => setEditForm({ ...editForm, service: e.target.value })}
-                      className="edit-select"
-                    >
-                      <option value="general">Général</option>
-                      <option value="rh">RH</option>
-                      <option value="commerce">Commerce</option>
-                      <option value="marketing">Marketing</option>
-                      <option value="informatique">Informatique</option>
-                      <option value="achat">Achat</option>
-                      <option value="comptabilité">Comptabilité</option>
-                      <option value="logistique">Logistique</option>
-                    </select>
-                    <div className="edit-actions">
-                      <button 
-                        className="save-button"
-                        onClick={() => handleSaveEdit(post._id)}
-                      >
-                        Sauvegarder
-                      </button>
-                      <button 
-                        className="cancel-button"
-                        onClick={handleCancelEdit}
-                      >
-                        Annuler
-                      </button>
-                    </div>
-                  </div>
+                  <PostEditForm
+                    post={post}
+                    onSave={(editForm) => handleSaveEdit(post._id, editForm)}
+                    onCancel={handleCancelEdit}
+                  />
                 ) : (
                   <>
                     <p>{post.content}</p>
@@ -502,13 +505,12 @@ const AdminPanel = () => {
                   Supprimer
                 </button>
                 <button 
-  className={`pin-button ${post.isPinned ? 'pinned' : ''}`}
-  onClick={() => handleTogglePin(post._id, post.isPinned, post.pinnedLocations)}
-  title={post.isPinned ? 'Désépingler' : 'Épingler'}
->
-  {post.isPinned ? '📌 Épinglé' : '📍 Épingler'}
-</button>
-
+                  className={`pin-button ${post.isPinned ? 'pinned' : ''}`}
+                  onClick={() => handleTogglePin(post._id, post.isPinned, post.pinnedLocations)}
+                  title={post.isPinned ? 'Désépingler' : 'Épingler'}
+                >
+                  {post.isPinned ? '📌 Épinglé' : '📍 Épingler'}
+                </button>
               </div>
             </div>
           ))
@@ -535,6 +537,7 @@ const AdminPanel = () => {
       </div>
     );
   };
+
   const renderUsers = () => {
     if (users.length === 0) {
       return <p className="no-items">Aucun utilisateur trouvé.</p>;
@@ -804,12 +807,6 @@ const AdminPanel = () => {
           >
             Supprimer
           </button>
-          <button 
-    className={`tab ${activeTab === 'pinned' ? 'active' : ''}`}
-    onClick={() => setActiveTab('pinned')}
-  >
-    Posts épinglés
-  </button>
         </div>
       </div>
     ));
@@ -833,6 +830,12 @@ const AdminPanel = () => {
           onClick={() => setActiveTab('allPosts')}
         >
           Tous les posts
+        </button>
+        <button 
+          className={`tab ${activeTab === 'pinned' ? 'active' : ''}`}
+          onClick={() => setActiveTab('pinned')}
+        >
+          Posts épinglés
         </button>
         <button 
           className={`tab ${activeTab === 'users' ? 'active' : ''}`}
@@ -872,6 +875,5 @@ const AdminPanel = () => {
     </div>
   );
 };
-
 
 export default AdminPanel;

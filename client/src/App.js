@@ -1,4 +1,4 @@
-// client/src/App.js - Version complète corrigée pour éviter les re-renders et warnings ESLint
+// client/src/App.js - Version corrigée pour éviter les re-renders du modal
 import React, { useState, useEffect, Suspense, useCallback, useMemo } from 'react';
 import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
 import './styles/index.css';
@@ -10,6 +10,10 @@ import AdminPanel from './components/admin/AdminPanel';
 import Post from './components/posts/Post';
 import oauthService from './services/oauthService';
 import CreatePostModal from './components/modals/CreatePostModal';
+import { useStableForm } from './hooks/useStableForm';
+import StableInput from './components/ui/StableInput';
+import StableSelect from './components/ui/StableSelect';
+
 
 // Import dynamique des composants OAuth
 const OAuthCallback = React.lazy(() => import('./components/auth/OAuthCallback'));
@@ -39,13 +43,11 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreatePostModal, setShowCreatePostModal] = useState(false);
   
-  // États du formulaire de création de post - GROUPÉS ENSEMBLE
-  const [postForm, setPostForm] = useState(() => ({
-    content: '',
-    service: 'general',
-    shouldPin: false,
-    pinLocations: ['general', 'service']
-  }));
+  // CORRECTION: États du formulaire de création de post - SIMPLIFIÉS et STABLES
+  const [postContent, setPostContent] = useState('');
+  const [postService, setPostService] = useState('general');
+  const [shouldPin, setShouldPin] = useState(false);
+  const [pinLocations, setPinLocations] = useState(['general', 'service']);
   
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [filePreviewUrls, setFilePreviewUrls] = useState([]);
@@ -74,11 +76,24 @@ function App() {
     }));
   }, []);
 
+  // CORRECTION: Gestionnaires simplifiés pour le formulaire de post
   const handlePostFormChange = useCallback((field, value) => {
-    setPostForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    switch (field) {
+      case 'content':
+        setPostContent(value);
+        break;
+      case 'service':
+        setPostService(value);
+        break;
+      case 'shouldPin':
+        setShouldPin(value);
+        break;
+      case 'pinLocations':
+        setPinLocations(value);
+        break;
+      default:
+        break;
+    }
   }, []);
 
   const handleTabChange = useCallback((tabId) => {
@@ -107,6 +122,34 @@ function App() {
       service: '',
       password: '',
       confirmPassword: ''
+    });
+  }, []);
+
+  const handleOpenCreatePostModal = useCallback(() => {
+    if (isLoggedIn) {
+      if (currentUser?.service && currentUser.service !== 'general') {
+        setPostService(currentUser.service);
+      } else {
+        setPostService('general');
+      }
+      setShowCreatePostModal(true);
+    } else {
+      handleOpenLoginModal(false);
+    }
+  }, [isLoggedIn, currentUser, handleOpenLoginModal]);
+
+  // CORRECTION PRINCIPALE: Fonction stable pour fermer le modal
+  const handleCloseCreatePostModal = useCallback(() => {
+    setShowCreatePostModal(false);
+    // Réinitialiser le formulaire
+    setPostContent('');
+    setPostService('general');
+    setShouldPin(false);
+    setPinLocations(['general', 'service']);
+    setSelectedFiles([]);
+    setFilePreviewUrls(prev => {
+      prev.forEach(file => URL.revokeObjectURL(file.url));
+      return [];
     });
   }, []);
 
@@ -251,13 +294,13 @@ function App() {
   // ========== CRÉATION DE POST ==========
 
   const handleCreatePost = useCallback(async () => {
-    if (!postForm.content.trim() && selectedFiles.length === 0) return;
+    if (!postContent.trim() && selectedFiles.length === 0) return;
     
     try {
       const formData = new FormData();
-      formData.append('content', postForm.content);
+      formData.append('content', postContent);
       
-      let serviceToUse = postForm.service;
+      let serviceToUse = postService;
       if (serviceToUse === 'general' && currentUser?.service && currentUser.service !== 'general') {
         serviceToUse = currentUser.service;
       }
@@ -272,10 +315,10 @@ function App() {
       
       const res = await api.post('/posts', formData);
       
-      if (currentUser?.isAdmin && postForm.shouldPin && postForm.pinLocations.length > 0) {
+      if (currentUser?.isAdmin && shouldPin && pinLocations.length > 0) {
         try {
           await api.put(`/admin/posts/${res.data._id}/pin`, { 
-            locations: postForm.pinLocations 
+            locations: pinLocations 
           });
         } catch (pinError) {
           console.error("Erreur lors de l'épinglage:", pinError);
@@ -285,33 +328,22 @@ function App() {
       if (currentUser?.isAdmin) {
         const newPost = {
           ...res.data,
-          isPinned: postForm.shouldPin,
-          pinnedLocations: postForm.shouldPin ? postForm.pinLocations : []
+          isPinned: shouldPin,
+          pinnedLocations: shouldPin ? pinLocations : []
         };
         setPosts(prev => [newPost, ...prev]);
       } else {
         alert("Votre publication a été soumise et sera visible après modération.");
       }
       
-      // Réinitialiser le formulaire
-      setPostForm({
-        content: '',
-        service: 'general',
-        shouldPin: false,
-        pinLocations: ['general', 'service']
-      });
-      setSelectedFiles([]);
-      setFilePreviewUrls(prev => {
-        prev.forEach(file => URL.revokeObjectURL(file.url));
-        return [];
-      });
-      setShowCreatePostModal(false);
+      // Fermer le modal et réinitialiser
+      handleCloseCreatePostModal();
       
     } catch (err) {
       console.error("Erreur lors de la création du post:", err);
       alert("Une erreur est survenue lors de la création du post");
     }
-  }, [postForm, selectedFiles, currentUser]); // ✅ CORRECTION: Retirer 'posts' des dépendances
+  }, [postContent, selectedFiles, currentUser, postService, shouldPin, pinLocations, handleCloseCreatePostModal]);
 
   // ========== FONCTIONS UTILITAIRES MÉMORISÉES ==========
 
@@ -456,7 +488,7 @@ function App() {
     };
   
     loadPostsForTab();
-  }, [searchQuery, activeTab, posts]); // Dépendances stables
+  }, [searchQuery, activeTab, posts]);
 
   // ========== FONCTIONS DE RENDU MÉMORISÉES ==========
 
@@ -483,18 +515,7 @@ function App() {
       
       <button 
         className="sidebar-button"
-        onClick={() => {
-          if (isLoggedIn) {
-            if (currentUser?.service && currentUser.service !== 'general') {
-              handlePostFormChange('service', currentUser.service);
-            } else {
-              handlePostFormChange('service', 'general');
-            }
-            setShowCreatePostModal(true);
-          } else {
-            handleOpenLoginModal(false);
-          }
-        }}
+        onClick={handleOpenCreatePostModal}
       >
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -521,7 +542,7 @@ function App() {
         </button>
       )}
     </div>
-  ), [isLoggedIn, currentUser, showAdminPanel, handleOpenLoginModal, handlePostFormChange]);
+  ), [isLoggedIn, currentUser, showAdminPanel, handleOpenCreatePostModal]);
 
   const preparePostData = useCallback((post) => {
     const formattedDate = formatDate(post.createdAt);
@@ -540,14 +561,19 @@ function App() {
     };
   }, [currentUser, formatDate]);
 
-  // ========== RENDU DES MODALS (MÉMORISÉ) ==========
-
+  // CORRECTION PRINCIPALE: Props stables pour le modal CreatePost
   const createPostModalProps = useMemo(() => ({
     isOpen: showCreatePostModal,
-    onClose: () => setShowCreatePostModal(false),
+    onClose: handleCloseCreatePostModal, // ← Fonction stable
     currentUser,
-    postForm,
-    onPostFormChange: handlePostFormChange,
+    // Objet postForm stable
+    postForm: {
+      content: postContent,
+      service: postService,
+      shouldPin: shouldPin,
+      pinLocations: pinLocations
+    },
+    onPostFormChange: handlePostFormChange, // ← Fonction stable
     filePreviewUrls,
     selectedFiles,
     onFileChange: handleFileChange,
@@ -556,8 +582,12 @@ function App() {
     formatDepartmentName
   }), [
     showCreatePostModal,
+    handleCloseCreatePostModal,
     currentUser,
-    postForm,
+    postContent,
+    postService,
+    shouldPin,
+    pinLocations,
     handlePostFormChange,
     filePreviewUrls,
     selectedFiles,
@@ -567,18 +597,39 @@ function App() {
     formatDepartmentName
   ]);
 
-  const renderAuthModal = useMemo(() => {
-    if (!showLoginModal) return null;
-
+  const AuthModalComponent = memo(({ 
+    isRegistering, 
+    onClose, 
+    onRegister, 
+    onLogin, 
+    onOAuthSuccess 
+  }) => {
+    const { values, handleChange, reset } = useStableForm({
+      firstName: '',
+      lastName: '',
+      email: '',
+      role: '',
+      service: '',
+      password: '',
+      confirmPassword: ''
+    });
+  
+    const handleSubmitRegister = (e) => {
+      e.preventDefault();
+      onRegister(values);
+    };
+  
+    const handleSubmitLogin = (e) => {
+      e.preventDefault();
+      onLogin(values);
+    };
+  
     return (
       <div className="modal-overlay">
         <div className="modal-content auth-modal">
           <div className="modal-header">
             <h2>{isRegistering ? 'Créer un compte' : 'Connexion'}</h2>
-            <button 
-              className="close-button"
-              onClick={handleCloseLoginModal}
-            >
+            <button className="close-button" onClick={onClose}>
               &times;
             </button>
           </div>
@@ -586,7 +637,7 @@ function App() {
           <div className="modal-body">
             <Suspense fallback={<div>Chargement...</div>}>
               <OAuthLogin 
-                onSuccess={handleOAuthSuccess}
+                onSuccess={onOAuthSuccess}
                 onError={(error) => {
                   console.error('Erreur OAuth:', error);
                   alert('Erreur lors de la connexion OAuth: ' + error);
@@ -595,28 +646,26 @@ function App() {
             </Suspense>
             
             {isRegistering ? (
-              <form onSubmit={handleRegister}>
+              <form onSubmit={handleSubmitRegister}>
                 <div className="form-group-row">
                   <div className="form-group">
                     <label htmlFor="firstName">Prénom</label>
-                    <input
+                    <StableInput
                       type="text"
                       id="firstName"
-                      name="firstName"
-                      value={authForm.firstName}
-                      onChange={handleAuthFormChange}
+                      value={values.firstName}
+                      onChange={handleChange('firstName')}
                       required
                     />
                   </div>
                   
                   <div className="form-group">
                     <label htmlFor="lastName">Nom</label>
-                    <input
+                    <StableInput
                       type="text"
                       id="lastName"
-                      name="lastName"
-                      value={authForm.lastName}
-                      onChange={handleAuthFormChange}
+                      value={values.lastName}
+                      onChange={handleChange('lastName')}
                       required
                     />
                   </div>
@@ -624,24 +673,22 @@ function App() {
                 
                 <div className="form-group">
                   <label htmlFor="email">Email</label>
-                  <input
+                  <StableInput
                     type="email"
                     id="email"
-                    name="email"
-                    value={authForm.email}
-                    onChange={handleAuthFormChange}
+                    value={values.email}
+                    onChange={handleChange('email')}
                     required
                   />
                 </div>
                 
                 <div className="form-group">
                   <label htmlFor="role">Poste dans l'entreprise</label>
-                  <input
+                  <StableInput
                     type="text"
                     id="role"
-                    name="role"
-                    value={authForm.role}
-                    onChange={handleAuthFormChange}
+                    value={values.role}
+                    onChange={handleChange('role')}
                     required
                     placeholder="Ex: Développeur, Manager, Consultant..."
                   />
@@ -649,11 +696,10 @@ function App() {
                 
                 <div className="form-group">
                   <label htmlFor="service">Service</label>
-                  <select
+                  <StableSelect
                     id="service"
-                    name="service"
-                    value={authForm.service}
-                    onChange={handleAuthFormChange}
+                    value={values.service}
+                    onChange={handleChange('service')}
                     className="service-select"
                     required
                   >
@@ -666,29 +712,27 @@ function App() {
                     <option value="achat">Achat</option>
                     <option value="comptabilité">Comptabilité</option>
                     <option value="logistique">Logistique</option>
-                  </select>
+                  </StableSelect>
                 </div>
                 
                 <div className="form-group">
                   <label htmlFor="password">Mot de passe</label>
-                  <input
+                  <StableInput
                     type="password"
                     id="password"
-                    name="password"
-                    value={authForm.password}
-                    onChange={handleAuthFormChange}
+                    value={values.password}
+                    onChange={handleChange('password')}
                     required
                   />
                 </div>
                 
                 <div className="form-group">
                   <label htmlFor="confirmPassword">Confirmer le mot de passe</label>
-                  <input
+                  <StableInput
                     type="password"
                     id="confirmPassword"
-                    name="confirmPassword"
-                    value={authForm.confirmPassword}
-                    onChange={handleAuthFormChange}
+                    value={values.confirmPassword}
+                    onChange={handleChange('confirmPassword')}
                     required
                   />
                 </div>
@@ -696,27 +740,25 @@ function App() {
                 <button type="submit" className="auth-submit-button">S'inscrire</button>
               </form>
             ) : (
-              <form onSubmit={handleLogin}>
+              <form onSubmit={handleSubmitLogin}>
                 <div className="form-group">
                   <label htmlFor="email">Email</label>
-                  <input
+                  <StableInput
                     type="email"
                     id="email"
-                    name="email"
-                    value={authForm.email}
-                    onChange={handleAuthFormChange}
+                    value={values.email}
+                    onChange={handleChange('email')}
                     required
                   />
                 </div>
                 
                 <div className="form-group">
                   <label htmlFor="password">Mot de passe</label>
-                  <input
+                  <StableInput
                     type="password"
                     id="password"
-                    name="password"
-                    value={authForm.password}
-                    onChange={handleAuthFormChange}
+                    value={values.password}
+                    onChange={handleChange('password')}
                     required
                   />
                 </div>
@@ -736,16 +778,7 @@ function App() {
         </div>
       </div>
     );
-  }, [
-    showLoginModal, 
-    isRegistering, 
-    authForm, 
-    handleCloseLoginModal, 
-    handleOAuthSuccess, 
-    handleRegister, 
-    handleLogin, 
-    handleAuthFormChange
-  ]);
+  });
 
   // ========== RENDU PRINCIPAL ==========
 
@@ -872,14 +905,7 @@ function App() {
                   type="general"
                   isLoggedIn={isLoggedIn}
                   currentUserService={currentUser?.service}
-                  onCreatePost={() => {
-                    if (currentUser?.service && currentUser.service !== 'general') {
-                      handlePostFormChange('service', currentUser.service);
-                    } else {
-                      handlePostFormChange('service', 'general');
-                    }
-                    setShowCreatePostModal(true);
-                  }}
+                  onCreatePost={handleOpenCreatePostModal}
                 />
               ) : activeTab === 'general' ? (
                 filteredPosts.map(post => (
@@ -903,10 +929,7 @@ function App() {
                   searchQuery={searchQuery}
                   isLoggedIn={isLoggedIn}
                   currentUserService={currentUser?.service}
-                  onCreatePost={() => {
-                    handlePostFormChange('service', activeTab);
-                    setShowCreatePostModal(true);
-                  }}
+                  onCreatePost={handleOpenCreatePostModal}
                 />
               )}
             </div>

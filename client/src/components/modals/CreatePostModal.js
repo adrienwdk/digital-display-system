@@ -1,7 +1,11 @@
-import React, { useCallback } from 'react';
+import React, { memo, useEffect } from 'react';
+import { useStableForm } from '../../hooks/useStableForm';
+import StableTextarea from '../ui/StableTextarea';
+import StableSelect from '../ui/StableSelect';
+import StableInput from '../ui/StableInput';
 import Avatar from '../ui/Avatar';
 
-const CreatePostModal = ({ 
+const CreatePostModal = memo(({ 
   isOpen, 
   onClose, 
   currentUser, 
@@ -14,14 +18,57 @@ const CreatePostModal = ({
   onCreatePost,
   formatDepartmentName
 }) => {
-  // All hooks must be called before any conditional returns
-  const formatFileSize = useCallback((bytes) => {
+  // Utiliser le hook de formulaire stable
+  const { values, handleChange, setValues } = useStableForm({
+    content: '',
+    service: 'general',
+    shouldPin: false,
+    pinLocations: ['general', 'service']
+  });
+
+  // Synchroniser avec les props au montage
+  useEffect(() => {
+    if (isOpen && postForm) {
+      setValues({
+        content: postForm.content || '',
+        service: postForm.service || 'general',
+        shouldPin: postForm.shouldPin || false,
+        pinLocations: postForm.pinLocations || ['general', 'service']
+      });
+    }
+  }, [isOpen, postForm, setValues]);
+
+  // Gestionnaire pour les locations d'épinglage
+  const handlePinLocationChange = (location, checked) => {
+    const newLocations = checked 
+      ? [...values.pinLocations, location]
+      : values.pinLocations.filter(loc => loc !== location);
+    
+    setValues(prev => ({
+      ...prev,
+      pinLocations: newLocations
+    }));
+  };
+
+  // Gestionnaire de création optimisé
+  const handleCreate = () => {
+    // Synchroniser tous les champs avec le parent
+    Object.entries(values).forEach(([key, value]) => {
+      onPostFormChange(key, value);
+    });
+    
+    // Créer le post
+    setTimeout(onCreatePost, 0);
+  };
+
+  // Fonctions utilitaires
+  const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
     else if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     else return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  }, []);
+  };
 
-  const getFileIcon = useCallback((fileType) => {
+  const getFileIcon = (fileType) => {
     if (fileType.startsWith('image/')) {
       return (
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
@@ -44,30 +91,8 @@ const CreatePostModal = ({
         <path d="M14 2v6h6" stroke="currentColor" strokeWidth="2" />
       </svg>
     );
-  }, []);
+  };
 
-  const handleTextareaChange = useCallback((e) => {
-    onPostFormChange('content', e.target.value);
-  }, [onPostFormChange]);
-
-  const handleServiceChange = useCallback((e) => {
-    onPostFormChange('service', e.target.value);
-  }, [onPostFormChange]);
-
-  const handlePinChange = useCallback((e) => {
-    onPostFormChange('shouldPin', e.target.checked);
-  }, [onPostFormChange]);
-
-  const handlePinLocationChange = useCallback((location, checked) => {
-    const locations = postForm.pinLocations;
-    if (checked) {
-      onPostFormChange('pinLocations', [...locations, location]);
-    } else {
-      onPostFormChange('pinLocations', locations.filter(loc => loc !== location));
-    }
-  }, [postForm.pinLocations, onPostFormChange]);
-
-  // Now the conditional return comes after all hooks
   if (!isOpen) return null;
 
   const authorData = currentUser || {
@@ -105,10 +130,10 @@ const CreatePostModal = ({
 
           <div className="form-group service-selector">
             <label htmlFor="postService">Service</label>
-            <select
+            <StableSelect
               id="postService"
-              value={postForm.service}
-              onChange={handleServiceChange}
+              value={values.service}
+              onChange={handleChange('service')}
               className="service-select"
             >
               {currentUser?.service && currentUser.service !== 'general' && (
@@ -124,49 +149,50 @@ const CreatePostModal = ({
               <option value="achat">Achat</option>
               <option value="comptabilité">Comptabilité</option>
               <option value="logistique">Logistique</option>
-            </select>
+            </StableSelect>
           </div>
 
           {isUserAdmin && (
             <div className="pin-options">
               <label className="pin-checkbox">
-                <input
+                <StableInput
                   type="checkbox"
-                  checked={postForm.shouldPin}
-                  onChange={handlePinChange}
+                  checked={values.shouldPin}
+                  onChange={handleChange('shouldPin')}
                 />
                 <span>Épingler ce post</span>
               </label>
               
-              {postForm.shouldPin && (
+              {values.shouldPin && (
                 <div className="pin-locations-select">
                   <label className="pin-location-label">
-                    <input
+                    <StableInput
                       type="checkbox"
-                      checked={postForm.pinLocations.includes('general')}
+                      checked={values.pinLocations.includes('general')}
                       onChange={(e) => handlePinLocationChange('general', e.target.checked)}
                     />
                     <span>Épingler dans Général</span>
                   </label>
                   <label className="pin-location-label">
-                    <input
+                    <StableInput
                       type="checkbox"
-                      checked={postForm.pinLocations.includes('service')}
+                      checked={values.pinLocations.includes('service')}
                       onChange={(e) => handlePinLocationChange('service', e.target.checked)}
                     />
-                    <span>Épingler dans {formatDepartmentName(postForm.service)}</span>
+                    <span>Épingler dans {formatDepartmentName(values.service)}</span>
                   </label>
                 </div>
               )}
             </div>
           )}
           
-          {/* TEXTAREA AVEC GESTION D'ÉTAT LOCALE */}
-          <textarea
+          {/* TEXTAREA STABLE */}
+          <StableTextarea
             placeholder="Que voulez-vous partager ?"
-            value={postForm.content}
-            onChange={handleTextareaChange}
+            value={values.content}
+            onChange={handleChange('content')}
             className="post-textarea"
+            autoFocus
           />
           
           {filePreviewUrls.length > 0 && (
@@ -239,8 +265,8 @@ const CreatePostModal = ({
             </div>
             <button
               className="publish-button"
-              onClick={onCreatePost}
-              disabled={!postForm.content.trim() && selectedFiles.length === 0}
+              onClick={handleCreate}
+              disabled={!values.content.trim() && selectedFiles.length === 0}
             >
               Publier
             </button>
@@ -249,6 +275,7 @@ const CreatePostModal = ({
       </div>
     </div>
   );
-};
+});
 
-export default React.memo(CreatePostModal);
+CreatePostModal.displayName = 'CreatePostModal';
+export default CreatePostModal;
