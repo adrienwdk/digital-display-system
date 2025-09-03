@@ -1,6 +1,6 @@
-import React, { memo } from 'react';
+import React, { memo, forwardRef } from 'react'; // ← Ajouter forwardRef
 
-const StableTextarea = memo(({ 
+const StableTextarea = memo(forwardRef(({ 
   placeholder, 
   value, 
   onChange, 
@@ -10,12 +10,14 @@ const StableTextarea = memo(({
   rows = 4,
   required = false,
   disabled = false,
+  autoFocus = false,
   ...props 
-}) => {
+}, ref) => {
   return (
     <textarea
+      ref={ref}
       placeholder={placeholder}
-      value={value}
+      value={value || ''} // ← Assurer que value n'est jamais undefined
       onChange={onChange}
       className={className}
       id={id}
@@ -23,10 +25,11 @@ const StableTextarea = memo(({
       rows={rows}
       required={required}
       disabled={disabled}
+      autoFocus={autoFocus}
       {...props}
     />
   );
-});
+}));
 
 StableTextarea.displayName = 'StableTextarea';
 export default StableTextarea;

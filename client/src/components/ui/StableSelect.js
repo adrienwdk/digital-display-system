@@ -1,6 +1,6 @@
-import React, { memo } from 'react';
+import React, { memo, forwardRef } from 'react'; // ← Ajouter forwardRef
 
-const StableSelect = memo(({ 
+const StableSelect = memo(forwardRef(({ 
   value, 
   onChange, 
   children, 
@@ -10,10 +10,11 @@ const StableSelect = memo(({
   required = false,
   disabled = false,
   ...props 
-}) => {
+}, ref) => {
   return (
     <select
-      value={value}
+      ref={ref}
+      value={value || ''} // ← Assurer que value n'est jamais undefined
       onChange={onChange}
       className={className}
       id={id}
@@ -25,7 +26,7 @@ const StableSelect = memo(({
       {children}
     </select>
   );
-});
+}));
 
 StableSelect.displayName = 'StableSelect';
 export default StableSelect;

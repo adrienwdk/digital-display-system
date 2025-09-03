@@ -1,7 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 export const useStableForm = (initialValues = {}) => {
   const [values, setValues] = useState(initialValues);
+  const initialValuesRef = useRef(initialValues);
+  
+  // Mettre à jour la référence si initialValues change
+  if (JSON.stringify(initialValues) !== JSON.stringify(initialValuesRef.current)) {
+    initialValuesRef.current = initialValues;
+  }
   
   const handleChange = useCallback((name) => (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -19,11 +25,11 @@ export const useStableForm = (initialValues = {}) => {
   }, []);
   
   const reset = useCallback(() => {
-    setValues(initialValues);
-  }, [initialValues]);
+    setValues(initialValuesRef.current);
+  }, []);
   
-  // CORRECTION: Renommer la fonction pour éviter le conflit avec setValues de React
-  const updateValues = useCallback((newValues) => {
+  // Mémoiser setValues pour éviter les re-renders
+  const stableSetValues = useCallback((newValues) => {
     if (typeof newValues === 'function') {
       setValues(newValues);
     } else {
@@ -36,6 +42,6 @@ export const useStableForm = (initialValues = {}) => {
     handleChange,
     setValue,
     reset,
-    setValues: updateValues // Exposer sous le nom setValues pour la compatibilité
+    setValues: stableSetValues
   };
 };

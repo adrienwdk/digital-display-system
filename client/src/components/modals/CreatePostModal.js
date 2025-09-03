@@ -1,4 +1,4 @@
-import React, { memo, useEffect } from 'react';
+import React, { memo, useEffect, useRef } from 'react';
 import { useStableForm } from '../../hooks/useStableForm';
 import StableTextarea from '../ui/StableTextarea';
 import StableSelect from '../ui/StableSelect';
@@ -27,14 +27,16 @@ const CreatePostModal = memo(({
   });
 
   // Synchroniser avec les props au montage
+  const prevPostFormRef = useRef();
   useEffect(() => {
-    if (isOpen && postForm) {
+    if (isOpen && postForm && postForm !== prevPostFormRef.current) {
       setValues({
         content: postForm.content || '',
         service: postForm.service || 'general',
         shouldPin: postForm.shouldPin || false,
         pinLocations: postForm.pinLocations || ['general', 'service']
       });
+      prevPostFormRef.current = postForm;
     }
   }, [isOpen, postForm, setValues]);
 

@@ -74,7 +74,7 @@ function App() {
     }));
   }, []);
 
-  // CORRECTION: Gestionnaires simplifiés pour le formulaire de post
+  // CORRECTION: Gestionnaires simplifiés pour le formulaire de post - STABLES
   const handlePostFormChange = useCallback((field, value) => {
     switch (field) {
       case 'content':
@@ -92,7 +92,7 @@ function App() {
       default:
         break;
     }
-  }, []);
+  }, []); // Les setState sont stables par défaut
 
   const handleTabChange = useCallback((tabId) => {
     console.log(`Onglet sélectionné: ${tabId}`);
@@ -559,19 +559,22 @@ function App() {
     };
   }, [currentUser, formatDate]);
 
+  // CORRECTION PRINCIPALE: Créer un objet postForm stable
+  const postFormValues = useMemo(() => ({
+    content: postContent,
+    service: postService,
+    shouldPin: shouldPin,
+    pinLocations: pinLocations
+  }), [postContent, postService, shouldPin, pinLocations]);
+
   // CORRECTION PRINCIPALE: Props stables pour le modal CreatePost
   const createPostModalProps = useMemo(() => ({
     isOpen: showCreatePostModal,
-    onClose: handleCloseCreatePostModal, // ← Fonction stable
+    onClose: handleCloseCreatePostModal,
     currentUser,
-    // Objet postForm stable
-    postForm: {
-      content: postContent,
-      service: postService,
-      shouldPin: shouldPin,
-      pinLocations: pinLocations
-    },
-    onPostFormChange: handlePostFormChange, // ← Fonction stable
+    // CORRECTION: Utiliser l'objet postForm stable
+    postForm: postFormValues,
+    onPostFormChange: handlePostFormChange,
     filePreviewUrls,
     selectedFiles,
     onFileChange: handleFileChange,
@@ -582,10 +585,7 @@ function App() {
     showCreatePostModal,
     handleCloseCreatePostModal,
     currentUser,
-    postContent,
-    postService,
-    shouldPin,
-    pinLocations,
+    postFormValues, // ← Référence stable
     handlePostFormChange,
     filePreviewUrls,
     selectedFiles,
